@@ -1,5 +1,5 @@
 ---
-title: 'Lab 1: Question 1'
+title: 'Lab 1: Question 3'
 author: "Jun Qian, Lucas Schroyer, Ryan Mitchell, Oliver Chang"
 output: pdf_document
 ---
@@ -7,11 +7,12 @@ output: pdf_document
 ```{r load packages, echo=TRUE, warning=FALSE, message=FALSE}
 library(dplyr)
 library(ggplot2) 
-# library(tidyverse) # if you want more, but still core, toolkit
+library(tidyverse) # if you want more, but still core, toolkit
 ```
 
 ```{r load and clean data, echo=FALSE, warning=TRUE, message=FALSE}
-
+anes_timeseries_raw3 <- readRDS(file = "Data/anes_key_fields.rds")
+anes_timeseries_raw3 %>% glimpse()
 ```
 
 

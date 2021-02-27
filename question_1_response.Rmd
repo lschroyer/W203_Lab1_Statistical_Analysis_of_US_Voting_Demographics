@@ -12,10 +12,9 @@ library(haven)
 library(tidyverse)
 # install.packages("DescTools")
 library(DescTools)
-# library(tidyverse) # if you want more, but still core, toolkit
 ```
 
-```{r load and clean data, echo=FALSE, warning=TRUE, message=FALSE}
+```{r load data, echo=FALSE, warning=TRUE, message=FALSE}
 ## read in initial data frame
 # https://electionstudies.org/data-center/2020-time-series-study/
 
@@ -38,8 +37,11 @@ id_key <- data.frame("id" = id_list, "desc" = names_list)
 View(id_key)
 
 rm(names_list, id_list)
-#select important columns for research question 1:
 
+
+```
+
+``` {r clean data, echo=FALSE, warning=TRUE, message=FALSE}
 # The study interviewed respondents in a pre-election survey that was
 # conducted between August 18, 2020 and November 3, 2020. Election day was
 # November 3, 2020. The study re-interviewed as many as possible of the same
@@ -70,8 +72,38 @@ anes_timeseries_raw <- anes_timeseries_2020_stata_20210211 %>%
             # 4. 3Ar2 Fresh sample: web only, replicate 2
             # 5. 3B Fresh sample: web or phone
             # 6. 3C Fresh sample: video, web, or phone
+         # ----key filters----#
          registered_to_vote_loc = V201008,
-         party_of_registration = V201018
+         
+         # ----question 1 fields ----#
+         # Democrat vs Republican Age in 2020
+         party_of_registration = V201018,
+         democratic_party_rating = V201156,
+         republican_party_rating = V201157,
+         age = V201507x,
+         
+         # ----question 2 fields ----#
+         # Democratic voters excited about Joe Biden or Kamala Harris
+         biden_rating = V201151,
+         harris_rating = V201153,
+         biden_likability = V201106,
+         biden_dislikability = V201108,
+         biden_leadership_skills = V201208,
+         biden_caring_for_people = V201209,
+         biden_knowledgeable = V201210,
+         biden_honest = V201211,
+
+         
+         # ----question 3 fields ----#
+         # Covid household approval of governor's handleing of the pandemic
+         voted_for_governor = V201066,
+         voted_for_governor2 = V201067,
+         voted_for_governor3 = V201070,
+         voted_for_governor4 = V201073,
+         gov_approval_covid_response = V201145,
+         gov_approval_covid_response2 = V201146,
+         covid_household_tested = V201624,
+         covid_household_suspected = V201625
          ) %>% 
   mutate(
     interview_type2 = as.integer(zap_labels(interview_type)),
@@ -95,8 +127,30 @@ anes_timeseries_raw <- anes_timeseries_2020_stata_20210211 %>%
     ) %>% 
   select(-interview_type2, -party_of_registration2)
 
+#save raw data for scripts 02 and 03
+saveRDS(anes_timeseries_raw, file = "Data/anes_key_fields.rds")
 
 anes_timeseries_raw %>% glimpse()
+
+```
+
+
+## Importance and Context
+<!-- You can (and should delete each of these comments lines in your final report) --> 
+<!-- Explain why the reader should care about your research question. -->
+
+1. Are Democratic voters older or younger than Republican voters in 2020?
+
+
+
+## Description of Data
+<!-- Explain how your research question is operationalized, including whether the variables you create are appropriate to study the concepts in question. --> 
+<!-- What are some basic features of the data distribution? --> 
+<!-- What changes do you make to the data and why? --> 
+
+```{r q1 exploratory analysis, echo=FALSE, warning=TRUE, message=FALSE}
+
+anes_timeseries_q1 <- anes_timeseries_raw
 
 #Option 1
 Hmisc::wtd.table(anes_timeseries_raw$party_of_registration_str, 
@@ -116,25 +170,6 @@ party_counts_2 <- party_counts %>%
   arrange(desc(sample_freq_weighted)) 
 
 party_counts_2
-
-```
-
-
-## Importance and Context
-<!-- You can (and should delete each of these comments lines in your final report) --> 
-<!-- Explain why the reader should care about your research question. -->
-
-1. Are Democratic voters older or younger than Republican voters in 2020?
-
-
-
-## Description of Data
-<!-- Explain how your research question is operationalized, including whether the variables you create are appropriate to study the concepts in question. --> 
-<!-- What are some basic features of the data distribution? --> 
-<!-- What changes do you make to the data and why? --> 
-
-```{r load and clean data, echo=FALSE, warning=TRUE, message=FALSE}
-
 ```
 
 
