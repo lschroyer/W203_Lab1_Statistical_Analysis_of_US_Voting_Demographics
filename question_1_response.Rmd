@@ -9,6 +9,9 @@ library(dplyr)
 library(ggplot2) 
 library(purrr)
 library(haven)
+library(tidyverse)
+# install.packages("DescTools")
+library(DescTools)
 # library(tidyverse) # if you want more, but still core, toolkit
 ```
 
@@ -28,9 +31,91 @@ for (var_tmp in names(labelled_df)) {
   id_list <- c(id_list, var_tmp)
   names_list <- c(names_list, name_tmp)
 }
+
 names_list %>% head()
 
 id_key <- data.frame("id" = id_list, "desc" = names_list)
+View(id_key)
+
+rm(names_list, id_list)
+#select important columns for research question 1:
+
+# The study interviewed respondents in a pre-election survey that was
+# conducted between August 18, 2020 and November 3, 2020. Election day was
+# November 3, 2020. The study re-interviewed as many as possible of the same
+# respondents in a post-election survey that was conducted between November 8,
+# 2020 and January 4, 2021.
+
+# The data should be analyzed using weights to accurately represent the population.
+# Sampling errors should be calculated using methods that account for the complex
+# sample design and the effects of weighting on variance.
+
+# For analysis of the complete pre-election dataset,
+# including all cases and representative of the 2020 electorate, use the full sample
+# weight, V200010a. This weight is for the full pre-election
+# dataset, consisting of the combination of sample groups for the webonly, mixed web, and mixed video modes, and the 2016-2020 panel cases combined. Most analyses should use this weight unless the sample group is intended to be limited to one of the subsets below
+
+# What are weighted datasets?
+# 
+# Weighted datasets are frequently found in survey research because the respondents to a survey are sampled from a larger population of interest. The respondents to the sample represent themselves and others in their "weight class" who were not included in the sample. So the weights essentially inflate (or deflate) the value for each row in the dataset to represent the population.
+
+anes_timeseries_raw <- anes_timeseries_2020_stata_20210211 %>% 
+  select(weight_all_samples = V200010a,
+         variance_unit = V200010b,
+         variance_stratum = V200010c,
+         interview_type = V200002,
+         sample_type = V200003,
+            # 2. ANES 2016-2020 Panel
+            # 3. 3Ar1 Fresh sample: web only, replicate 1
+            # 4. 3Ar2 Fresh sample: web only, replicate 2
+            # 5. 3B Fresh sample: web or phone
+            # 6. 3C Fresh sample: video, web, or phone
+         registered_to_vote_loc = V201008,
+         party_of_registration = V201018
+         ) %>% 
+  mutate(
+    interview_type2 = as.integer(zap_labels(interview_type)),
+    party_of_registration2 = as.integer(zap_labels(party_of_registration))) %>% 
+  mutate(
+    interview_type_char = case_when(
+      `interview_type2` == 1 ~ "Video",
+      `interview_type2` == 2 ~ "Telephone",
+      `interview_type2` == 3 ~ "Web",
+      T ~ "NA"),
+    registered_to_vote_status = case_when(
+      registered_to_vote_loc %in% c(1,2) ~ T,
+      registered_to_vote_loc == 3 ~ F,
+      T ~ NA),
+    party_of_registration_str = case_when(
+      party_of_registration2 == 1 ~ "Democrat",
+      party_of_registration2 == 2 ~ "Republican",
+      party_of_registration2 == 4 ~ "None_or_independent",
+      party_of_registration2 == 5 ~ "other",
+      T ~ "NA")
+    ) %>% 
+  select(-interview_type2, -party_of_registration2)
+
+
+anes_timeseries_raw %>% glimpse()
+
+#Option 1
+Hmisc::wtd.table(anes_timeseries_raw$party_of_registration_str, 
+          weights = anes_timeseries_raw$weight_all_samples,
+          normwt = FALSE)
+#Option 2
+party_counts <- tapply(anes_timeseries_raw$weight_all_samples, 
+       anes_timeseries_raw$party_of_registration_str, 
+       sum) %>% 
+  as.data.frame()
+
+party_counts <- cbind(newColName = rownames(party_counts), party_counts)
+rownames(party_counts) <- 1:nrow(party_counts)
+names(party_counts) <- c("party", "sample_count_weighted")
+party_counts_2 <- party_counts %>% 
+  mutate(sample_freq_weighted = sample_count_weighted/sum(sample_count_weighted) * 100) %>% 
+  arrange(desc(sample_freq_weighted)) 
+
+party_counts_2
 
 ```
 
@@ -47,6 +132,11 @@ id_key <- data.frame("id" = id_list, "desc" = names_list)
 <!-- Explain how your research question is operationalized, including whether the variables you create are appropriate to study the concepts in question. --> 
 <!-- What are some basic features of the data distribution? --> 
 <!-- What changes do you make to the data and why? --> 
+
+```{r load and clean data, echo=FALSE, warning=TRUE, message=FALSE}
+
+```
+
 
 ## Most appropriate test 
 <!-- Explain which test is the most appropriate to answer your question and why it is the most appropriate --> 
