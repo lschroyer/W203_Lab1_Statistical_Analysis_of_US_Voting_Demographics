@@ -12,20 +12,37 @@ library(tidyverse) # if you want more, but still core, toolkit
 
 ```{r load and clean data, echo=FALSE, warning=TRUE, message=FALSE}
 
-anes_timeseries_raw2 <- readRDS(file = "Data/anes_key_fields.rds")
+anes_timeseries_raw2 <- readRDS(file = "Data/anes_key_fields_forQ2.rds") %>% 
+  select(id,
+         biden_rating,# = V201151, Main Variable
+         harris_rating,# = V201153, Main Variable
+         biden_likability,# = V201106, Potential Secondary Variable
+         biden_dislikability,# = V201108, Potential Secondary Variable
+         biden_leadership_skills,# = V201208, Potential Secondary Variable
+         biden_caring_for_people,# = V201209, Potential Secondary Variable
+         biden_knowledgeable,# = V201210, Potential Secondary Variable
+         biden_honest,# = V201211, Potential Secondary Variable
+         voted_early_in_gen_election, #cleaned in script 01
+         plan_to_vote_in_gen_election, #cleaned in script 01
+         party_of_registration_str_edited) #cleaned in script 01
+
 anes_timeseries_raw2 %>% glimpse()
 
 anes_timeseries_raw2 %>% nrow()
-# 8280 rows
+# 8168 rows
+anes_timeseries_raw2 %>% glimpse
 
-#filter to democratic voters
+#filter to democratic voters (note these responses were cleaned in script 01)
 anes_timeseries_q2 <- anes_timeseries_raw2 %>% 
   filter((voted_early_in_gen_election == 1 | 
            plan_to_vote_in_gen_election == 1) & 
-           party_of_registration_str == "Democrat")
+           party_of_registration_str_edited == "Democrat")
 
 anes_timeseries_q2 %>% nrow()
 # 1833 rows
+
+########Enthusiasm########
+anes_timeseries_q2
 
 ```
 

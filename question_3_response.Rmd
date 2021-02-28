@@ -11,7 +11,17 @@ library(tidyverse) # if you want more, but still core, toolkit
 ```
 
 ```{r load and clean data, echo=FALSE, warning=TRUE, message=FALSE}
-anes_timeseries_raw3 <- readRDS(file = "Data/anes_key_fields.rds")
+anes_timeseries_raw3 <- readRDS(file = "Data/anes_key_fields_forQ3.rds") %>% 
+  select(id, 
+         gov_approval_covid_response,# = V201145, Main Variable
+         gov_approval_covid_response2,# = V201146, Main Variable
+         voted_for_governor,# = V201066, Potential Secondary Variable
+         voted_for_governor2,# = V201067, Potential Secondary Variable
+         voted_for_governor3,# = V201070, Potential Secondary Variable
+         voted_for_governor4,# = V201073,Potential Secondary Variable
+         covid_household_tested,# = V201624, Main Variable
+         covid_household_suspected)# = V201625, Main Variable
+
 anes_timeseries_raw3 %>% glimpse()
 
 anes_timeseries_raw3 %>% count(gov_approval_covid_response)
@@ -35,6 +45,8 @@ anes_timeseries_q3 %>%
   rename(count = n) %>% 
   arrange(desc(count)) %>% 
   mutate(freq = round(count/sum(count)*100,2))
+
+
 
 ```
 
