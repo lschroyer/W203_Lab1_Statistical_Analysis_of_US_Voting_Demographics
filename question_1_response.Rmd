@@ -34,7 +34,7 @@ for (var_tmp in names(labelled_df)) {
 names_list %>% head()
 
 id_key <- data.frame("id" = id_list, "desc" = names_list)
-View(id_key)
+# View(id_key)
 
 rm(names_list, id_list)
 
@@ -81,6 +81,8 @@ anes_timeseries_raw <- anes_timeseries_2020_stata_20210211 %>%
          democratic_party_rating = V201156,
          republican_party_rating = V201157,
          age = V201507x,
+         voted_early_in_gen_election = V201022,
+         plan_to_vote_in_gen_election = V201032,
          
          # ----question 2 fields ----#
          # Democratic voters excited about Joe Biden or Kamala Harris
@@ -150,8 +152,19 @@ anes_timeseries_raw %>% glimpse()
 
 ```{r q1 exploratory analysis, echo=FALSE, warning=TRUE, message=FALSE}
 
-anes_timeseries_q1 <- anes_timeseries_raw
+anes_timeseries_raw %>% nrow()
+# 8280
 
+#filter to voters
+anes_timeseries_q1 <- anes_timeseries_raw %>% 
+  filter(voted_early_in_gen_election == 1 | 
+           plan_to_vote_in_gen_election == 1)
+
+anes_timeseries_q1 %>% nrow()
+# 7691
+
+
+# Exploratory analysis of weighted dems vs republicans. Still needs age and stats tests
 #Option 1
 Hmisc::wtd.table(anes_timeseries_raw$party_of_registration_str, 
           weights = anes_timeseries_raw$weight_all_samples,

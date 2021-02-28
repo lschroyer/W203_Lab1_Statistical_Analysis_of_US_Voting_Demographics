@@ -15,6 +15,18 @@ library(tidyverse) # if you want more, but still core, toolkit
 anes_timeseries_raw2 <- readRDS(file = "Data/anes_key_fields.rds")
 anes_timeseries_raw2 %>% glimpse()
 
+anes_timeseries_raw2 %>% nrow()
+# 8280 rows
+
+#filter to democratic voters
+anes_timeseries_q2 <- anes_timeseries_raw2 %>% 
+  filter((voted_early_in_gen_election == 1 | 
+           plan_to_vote_in_gen_election == 1) & 
+           party_of_registration_str == "Democrat")
+
+anes_timeseries_q2 %>% nrow()
+# 1833 rows
+
 ```
 
 

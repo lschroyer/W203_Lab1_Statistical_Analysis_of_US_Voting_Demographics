@@ -21,6 +21,21 @@ anes_timeseries_raw3 %>%
   count(gov_approval_covid_response, gov_approval_covid_response2) %>% 
   arrange(desc(gov_approval_covid_response), desc(gov_approval_covid_response2))
 
+anes_timeseries_q3 <- anes_timeseries_raw3 %>% 
+  mutate(gov_approval_covid_response_new = case_when(
+    gov_approval_covid_response == 1 & gov_approval_covid_response2 == 1 ~ "Strongly Approve",
+    gov_approval_covid_response == 2 & gov_approval_covid_response2 == 1 ~ "Strongly Disapprove",
+    gov_approval_covid_response == 1 & gov_approval_covid_response2 == 2 ~ "Not Strongly Approve",
+    gov_approval_covid_response == 2 & gov_approval_covid_response2 == 2 ~ "Not Strongly Disapprove",
+    T ~ "Other"
+  ))
+
+anes_timeseries_q3 %>% 
+  count(gov_approval_covid_response_new) %>% 
+  rename(count = n) %>% 
+  arrange(desc(count)) %>% 
+  mutate(freq = round(count/sum(count)*100,2))
+
 ```
 
 
