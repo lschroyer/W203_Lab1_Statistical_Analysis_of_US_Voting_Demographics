@@ -24,6 +24,14 @@ anes_timeseries_raw2 %>% glimpse()
 
 2. Are Democratic voters more enthusiastic about Joe Biden or Kamala Harris?
 
+- Interval Data 
+How would you rate:
+Kamala Harris
+0-100. Actual value
+998. Don’t know (don’t know where to rate)
+999. Don’t recognize (don’t know who this is)
+-4. Technical error
+-9. Refused
 
 ## Description of Data
 <!-- Explain how your research question is operationalized, including whether the variables you create are appropriate to study the concepts in question. --> 
