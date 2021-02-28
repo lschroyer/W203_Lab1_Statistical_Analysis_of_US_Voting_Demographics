@@ -1,13 +1,18 @@
 ---
 title: 'Lab 1: Question 2'
 author: "Jun Qian, Lucas Schroyer, Ryan Mitchell, Oliver Chang"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
+  word_document: default
 ---
 
 ```{r load packages, echo=TRUE, warning=FALSE, message=FALSE}
 library(dplyr)
 library(ggplot2) 
 library(tidyverse) # if you want more, but still core, toolkit
+library(plotly)
+library(weights)
 ```
 
 ```{r load and clean data, echo=FALSE, warning=TRUE, message=FALSE}
@@ -50,10 +55,55 @@ Kamala Harris
 <!-- What are some basic features of the data distribution? --> 
 <!-- What changes do you make to the data and why? --> 
 
+```{r load and clean data, echo=FALSE, warning=TRUE, message=FALSE}
+
+data_q2 <- anes_timeseries_q2 %>% 
+  filter(biden_rating >=0 & biden_rating <= 100 & harris_rating >=0 & harris_rating <= 100 &
+         !is.na(biden_rating) & !is.na(harris_rating) & !is.na(weight_all_samples))
+           
+
+
+biden = select(data_q2, biden_rating)
+hist(biden)
+biden = as.numeric(unlist(biden))
+
+
+harris = select(data_q2, harris_rating)
+hist(harris)
+harris = as.numeric(unlist(harris))
+
+data = select(data_q2, biden_rating, harris_rating)
+
+
+
+```
+
 ## Most appropriate test 
 <!-- Explain which test is the most appropriate to answer your question and why it is the most appropriate --> 
 <!-- List every assumption that your test requires and evaluate it. -->
 
+```{r load and clean data, echo=FALSE, warning=TRUE, message=FALSE}
+
+weights_1 = select(data_q2, weight_all_samples)
+weights_1 = as.numeric(unlist(weights_1))
+
+
+wtd.t.test(harris, biden, weights_1, samedata=TRUE,
+alternative="two.tailed")
+
+
+```
+
 ## Test, results and interpretation
 <!-- What are the results of your test? --> 
 <!-- What do the results of this test mean? What is the practical significance? --> 
+
+
+
+
+
+
+
+
+
+
