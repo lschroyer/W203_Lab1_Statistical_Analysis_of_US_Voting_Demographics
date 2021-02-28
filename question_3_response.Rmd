@@ -11,7 +11,7 @@ library(tidyverse) # if you want more, but still core, toolkit
 ```
 
 ```{r load and clean data, echo=FALSE, warning=TRUE, message=FALSE}
-anes_timeseries_raw3 <- readRDS(file = "Data/anes_key_fields_forQ3.rds") %>% 
+anes_timeseries_raw3_0 <- readRDS(file = "Data/anes_key_fields_forQ3.rds") %>% 
   select(id, 
          gov_approval_covid_response,# = V201145, Main Variable
          gov_approval_covid_response2,# = V201146, Main Variable
@@ -22,7 +22,12 @@ anes_timeseries_raw3 <- readRDS(file = "Data/anes_key_fields_forQ3.rds") %>%
          covid_household_tested,# = V201624, Main Variable
          covid_household_suspected)# = V201625, Main Variable
 
-anes_timeseries_raw3 %>% glimpse()
+anes_timeseries_raw3_0 %>% glimpse()
+
+#DATA CLEANING HERE
+
+#END DATA CLEANING
+anes_timeseries_raw3 <- anes_timeseries_raw3_0
 
 anes_timeseries_raw3 %>% count(gov_approval_covid_response)
 anes_timeseries_raw3 %>% count(gov_approval_covid_response2)
@@ -31,14 +36,32 @@ anes_timeseries_raw3 %>%
   count(gov_approval_covid_response, gov_approval_covid_response2) %>% 
   arrange(desc(gov_approval_covid_response), desc(gov_approval_covid_response2))
 
-anes_timeseries_q3 <- anes_timeseries_raw3 %>% 
+
+# Create a Likert Variable from two variables measuring approval/disapproval and degree of approval/disapproval.
+anes_timeseries_q3 <- anes_timeseries_raw3 %>%
   mutate(gov_approval_covid_response_new = case_when(
-    gov_approval_covid_response == 1 & gov_approval_covid_response2 == 1 ~ "Strongly Approve",
-    gov_approval_covid_response == 2 & gov_approval_covid_response2 == 1 ~ "Strongly Disapprove",
-    gov_approval_covid_response == 1 & gov_approval_covid_response2 == 2 ~ "Not Strongly Approve",
-    gov_approval_covid_response == 2 & gov_approval_covid_response2 == 2 ~ "Not Strongly Disapprove",
-    T ~ "Other"
+    gov_approval_covid_response == 2 & gov_approval_covid_response2 == 1 ~ 1, #“Strongly Disapprove”
+    gov_approval_covid_response == 2 & gov_approval_covid_response2 == 2 ~ 2, #“Not Strongly Disapprove”
+    gov_approval_covid_response == 1 & gov_approval_covid_response2 == 2 ~ 3, #“Not Strongly Approve”
+    gov_approval_covid_response == 1 & gov_approval_covid_response2 == 1 ~ 4, #“Strongly Approve”
+    T ~ 99
+  )) %>%
+# Recode the Disapprove (2) and Approve (1) values to binary
+  mutate(gov_approval_covid_response_binary = case_when(
+    gov_approval_covid_response == 1 ~ 1,
+    gov_approval_covid_response == 2 ~ 0,
+    T ~ 99
   ))
+
+
+# anes_timeseries_q3 <- anes_timeseries_raw3 %>% 
+#   mutate(gov_approval_covid_response_new = case_when(
+#     gov_approval_covid_response == 1 & gov_approval_covid_response2 == 1 ~ "Strongly Approve",
+#     gov_approval_covid_response == 2 & gov_approval_covid_response2 == 1 ~ "Strongly Disapprove",
+#     gov_approval_covid_response == 1 & gov_approval_covid_response2 == 2 ~ "Not Strongly Approve",
+#     gov_approval_covid_response == 2 & gov_approval_covid_response2 == 2 ~ "Not Strongly Disapprove",
+#     T ~ "Other"
+#   ))
 
 anes_timeseries_q3 %>% 
   count(gov_approval_covid_response_new) %>% 

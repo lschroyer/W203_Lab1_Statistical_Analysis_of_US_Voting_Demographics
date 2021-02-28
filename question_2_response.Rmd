@@ -39,10 +39,123 @@ anes_timeseries_q2 <- anes_timeseries_raw2 %>%
            party_of_registration_str_edited == "Democrat")
 
 anes_timeseries_q2 %>% nrow()
-# 1833 rows
+# 2775 rows
 
 ########Enthusiasm########
-anes_timeseries_q2
+# How would you rate (candidate):
+# 0-100. Actual value
+# 998. Don’t know (don’t know where to rate)
+# 999. Don’t recognize (don’t know who this is)
+# -4. Technical error
+# -9. Refused
+anes_timeseries_q2$biden_rating %>% summary()
+  # -9.00   70.00   85.00   75.47   90.00  100.00 
+
+anes_timeseries_q2$harris_rating %>% summary()
+  # -9.00   70.00   85.00   76.21   90.00  999.00 
+
+# catergorize response type: 1 = correct rating, actual value otherwise
+anes_timeseries_q2 <- anes_timeseries_q2 %>% 
+  mutate(biden_enthus_response_type = if_else(biden_rating <= 100 & biden_rating >=0, 
+                                   1, biden_rating),
+         harris_enthus_response_type = if_else(harris_rating <= 100 & harris_rating >=0, 
+                                   1, harris_rating)
+         )
+
+anes_timeseries_q2 %>%
+  count(biden_enthus_response_type) %>%
+  rename(count = n) %>%
+  arrange(desc(count)) %>%
+  mutate(freq = round(count/sum(count)*100,2))
+# 1.69% of respondees refused to answer for Biden enthusiasm. The rest provided a numerical value.
+
+anes_timeseries_q2 %>%
+  count(harris_enthus_response_type) %>%
+  rename(count = n) %>%
+  arrange(desc(count)) %>%
+  mutate(freq = round(count/sum(count)*100,2))
+# 1.95% of respondees refused to answer Hariss. 0.11% didn't recognize Harris as a candidate for VP and 0.07% didn't know where to rate. The rest provided a numerical value.
+
+anes_timeseries_q2 %>%
+  count(biden_enthus_response_type, harris_enthus_response_type) %>%
+  rename(count = n) %>%
+  arrange(desc(count)) %>%
+  mutate(freq = round(count/sum(count)*100,2))
+# 1.33% provide a response for Biden but not for Harris while 0.9% provided a response for Hariss but not Biden. 0.8% didn't provide a reponse for either. 96.97% provided numerical responses.
+
+#Biden avg response for missing Hariss Data
+anes_timeseries_q2 %>% 
+  filter(harris_enthus_response_type != 1 & biden_enthus_response_type == 1) %>% 
+  select(biden_rating) %>% 
+  summary() 
+
+#Harris avg response for missing Biden Data
+anes_timeseries_q2 %>% 
+  filter(biden_enthus_response_type != 1 & harris_enthus_response_type == 1) %>% 
+  select(harris_rating) %>% 
+  summary()
+
+
+
+enthus_box_plot_data <-  list(
+  "biden_rating" = (anes_timeseries_q2 %>% 
+          filter(biden_enthus_response_type == 1))$biden_rating,
+  "biden_rating_missing_harris_ratings" = (anes_timeseries_q2 %>% 
+          filter(harris_enthus_response_type != 1 & biden_enthus_response_type == 1))$biden_rating,
+  "harris_rating" = (anes_timeseries_q2 %>% 
+          filter(harris_enthus_response_type == 1))$harris_rating,  
+  "harris_rating_missig_biden_ratings" = (anes_timeseries_q2 %>% 
+          filter(biden_enthus_response_type != 1 & harris_enthus_response_type == 1))$harris_rating)
+
+#size of each vector
+enthus_box_plot_data$biden_rating %>% length() #2728
+enthus_box_plot_data$biden_rating_missing_harris_ratings %>% length() #37
+enthus_box_plot_data$harris_rating %>% length() #2716
+enthus_box_plot_data$harris_rating_missig_biden_ratings %>% length() #25
+
+#create boxplot showing each vector  
+par(mar = c(6.1, 4.1, 4.1, 4.1), # change the margins
+    lwd = 1.2#, # increase the line thickness
+    # cex.axis = 1.2 # increase default axis label size
+    )
+
+boxplot(enthus_box_plot_data$biden_rating,
+        enthus_box_plot_data$biden_rating_missing_harris_ratings,
+        enthus_box_plot_data$harris_rating,
+        enthus_box_plot_data$harris_rating_missig_biden_ratings,
+main = "Boxplot for Rating Responses by Candidate\nand Data Completeness Type",
+at = c(1,2,4,5),las = 2, tck = -0.01,
+col = c("orange","orange", "red", "red"),
+border = "#333333",
+xaxt = "n", yaxt = "n"
+)
+axis(side = 1, 
+     labels = FALSE,
+     padj=1)
+
+axis(side = 2,
+     ## Rotate labels perpendicular to y-axis.
+     las = 2,
+     ## Adjust y-axis label positions.
+     mgp = c(3, 0.75, 0))
+
+text(x = 1:5,
+     ## Move labels to just below bottom of chart.
+     offset = -1,
+     y = par("usr")[3] - 1.0,
+     ## Use names from the data list.
+     labels = c("\n\nBiden", "\n\n\n\nBiden\n(When Harris\nData Missing)","","\n\nHarris", "\n\n\n\nHarris\n(When Biden\nData Missing)"),
+     ## Change the clipping region.
+     xpd = NA,
+     ## Rotate the labels by 35 degrees.
+     srt = 35,
+     ## Adjust the labels to almost 100% right-justified.
+     adj = 1.0,
+     ## Increase label size.
+     cex = 0.75)
+
+#For the Biden and Biden filterd to when Harris ratings missing options, there seems to be a good amount of overlap in the expected mean. For the Harris and Harris (missing Biden Data), there does not seem to be much overlap in the data. When viewing the results of our final statistical test for this variable of "enthusiasm", we will discuss the potential impact of removing this data. For now though, given the small number of responses that are missing data, we will ignore this impact.  
+
 
 ```
 
@@ -66,6 +179,26 @@ Kamala Harris
 <!-- Explain how your research question is operationalized, including whether the variables you create are appropriate to study the concepts in question. --> 
 <!-- What are some basic features of the data distribution? --> 
 <!-- What changes do you make to the data and why? --> 
+
+```{r Data Description, echo=FALSE, warning=TRUE, message=FALSE}
+
+h1 <- anes_timeseries_q2 %>% 
+  select(biden_rating) %>% 
+  filter(biden_rating >= 0 & biden_rating <= 100)
+  
+h2 <- anes_timeseries_q2 %>% 
+  select(harris_rating) %>% 
+  filter(harris_rating >= 0 & harris_rating <= 100)
+
+hist(h2$harris_rating, col=rgb(0,0,1,0.5),
+     main = "Age of Survey Respondents by Political Party", 
+     xlab = "Age (years)", ylab = "Sampled Percentile", freq = FALSE, right = TRUE)
+hist(h1$biden_rating, freq = FALSE, col=rgb(1,0,0,0.5), 
+     add=T, right = TRUE)
+legend("topleft", c("Harris", "Biden"), lwd=10, col=c(rgb(0,0,1,0.5), rgb(1,0,0,0.5)))
+box()
+
+```
 
 ## Most appropriate test 
 <!-- Explain which test is the most appropriate to answer your question and why it is the most appropriate --> 

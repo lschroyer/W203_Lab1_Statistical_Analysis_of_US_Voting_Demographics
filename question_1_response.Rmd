@@ -261,7 +261,7 @@ h2 <- anes_timeseries_q1_0 %>%
   filter(party_of_registration_str_edited == "Republican") %>% 
   select(age, party_of_registration_str_edited)
 
-foo <- hist(h1$age, col=rgb(0,0,1,0.5),
+hist(h1$age, col=rgb(0,0,1,0.5),
      main = "Age of Survey Respondents by Political Party", 
      xlab = "Age (years)", ylab = "Sampled Percentile", freq = FALSE, right = TRUE)
 hist(h2$age, freq = FALSE, col=rgb(1,0,0,0.5), 
