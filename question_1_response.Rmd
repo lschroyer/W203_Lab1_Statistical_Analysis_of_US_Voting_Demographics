@@ -5,6 +5,7 @@ output: pdf_document
 ---
 
 ```{r load packages, echo=TRUE, warning=FALSE, message=FALSE}
+rm(list = ls())
 library(dplyr)
 library(ggplot2) 
 library(purrr)
@@ -110,11 +111,14 @@ anes_timeseries_raw <- anes_timeseries_2020_stata_20210211 %>%
   # remove labels from haven package
   mutate_all(zap_labels) %>% 
   mutate(
+    
+    # TODO - delete
     interview_type_char = case_when(
       `interview_type` == 1 ~ "Video",
       `interview_type` == 2 ~ "Telephone",
       `interview_type` == 3 ~ "Web",
       T ~ "NA"),
+    
     registered_to_vote_status = case_when(
       registered_to_vote_loc %in% c(1,2) ~ T,
       registered_to_vote_loc == 3 ~ F,
@@ -167,20 +171,21 @@ anes_timeseries_q1_0 <-  anes_timeseries_raw %>%
          #Q2 variables (carry through to minimize duplicate data cleaning steps)
          biden_rating,
          harris_rating,
-         biden_likability,
-         biden_dislikability,
-         biden_leadership_skills,
-         biden_caring_for_people,
-         biden_knowledgeable,
-         biden_honest
+         # biden_likability,
+         # biden_dislikability,
+         # biden_leadership_skills,
+         # biden_caring_for_people,
+         # biden_knowledgeable,
+         # biden_honest
   )
-
+#check the structure
 anes_timeseries_q1_0 %>% 
   str() 
+#all variables are the expected structure
 
 #########Registration Status########
 anes_timeseries_q1_0$registered_to_vote_status %>% summary()
-#less than .15% of respondents did not respond in a T/F manner. Drop these sites.
+#less than .15% of respondents (i.e. 11) did not respond in a T/F manner. Drop these sites.
 
 anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
   filter(!is.na(registered_to_vote_status))
@@ -214,7 +219,9 @@ anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>%
          rep_party_fav = republican_party_rating_2 - democrat_party_rating_2)
 
 hist(anes_timeseries_q1_0$dem_party_fav, breaks = 20, main = "Dem Rating - Rep Rating", xlab = NULL)
+# View the paired delta in ratings
 
+#Use a cutoff of +/- 50 points to remap NA party registered respondents
 anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
   mutate(
     party_of_registration_str2 = case_when(
@@ -230,7 +237,7 @@ anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>%
 anes_timeseries_q1_0 %>% 
   filter(party_of_registration_str != party_of_registration_str3) %>% 
   nrow()
-#added back 2205 rows were the party was previously classified as NA
+#added back 2105 rows were the party was previously classified as NA
 
 anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
   select(-party_of_registration_str2, -dem_party_fav, 
@@ -242,34 +249,6 @@ anes_timeseries_q1_0 %>% nrow()
 #8188
 
 
-########Age########
-anes_timeseries_q1_0$age %>% summary()
-  #  Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-  # -9.00   35.00   51.00   49.08   65.00   80.00 
-
-# Are survey respondents who answered 80+ or -9 (refused) more likely to be republican or democrat?
-# anes_timeseries_q1_0 %>% select(age, party_of_registration_str_edited) %>% str()
-# 
-# cor(anes_timeseries_q1_0 %>% select(age, party_of_registration_str_edited))
-# heatmap(anes_timeseries_q1_0 %>% select(age, party_of_registration_str_edited))
-
-h1 <- anes_timeseries_q1_0 %>% 
-  filter(party_of_registration_str_edited == "Democrat") %>% 
-  select(age, party_of_registration_str_edited)
-  
-h2 <- anes_timeseries_q1_0 %>% 
-  filter(party_of_registration_str_edited == "Republican") %>% 
-  select(age, party_of_registration_str_edited)
-
-hist(h1$age, col=rgb(0,0,1,0.5),
-     main = "Age of Survey Respondents by Political Party", 
-     xlab = "Age (years)", ylab = "Sampled Percentile", freq = FALSE, right = TRUE)
-hist(h2$age, freq = FALSE, col=rgb(1,0,0,0.5), 
-     add=T, right = TRUE)
-legend("topleft", c("Democrat", "Republican"), lwd=10, col=c(rgb(0,0,1,0.5), rgb(1,0,0,0.5)))
-box()
-
-#The resulting histogram illustrates that Republican data has higher rates of 80+ years of age and do not respond.
 
 ########voted_early_in_gen_election or plan_to_vote_in_gen_election########
 # ALREADY VOTED IN GENERAL ELECTION
@@ -297,10 +276,10 @@ anes_timeseries_q1_0 %>%
   arrange(desc(count)) %>%
   mutate(freq = round(count/sum(count)*100,2))
 # 0.2% of the population refused to answer or did not know. Drop these since it is so small. All "inapplicable" responses are associated with respondents who have already voted from voted_early_in_gen_election   
-
 anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
   filter(voted_early_in_gen_election != -9) %>% 
   filter(!(plan_to_vote_in_gen_election %in% c(-8, -9)))
+
 
 100*(1 - (anes_timeseries_q1_0 %>% nrow())/(anes_timeseries_raw %>% nrow()))
 #In all of the data cleaning steps for Q1 and Q2, dropped 1.4% of the survey rows
@@ -308,6 +287,45 @@ anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>%
 ########save transformed data for scripts 02########
 saveRDS(anes_timeseries_q1_0, file = "Data/anes_key_fields_forQ2.rds")
 
+
+########Age########
+anes_timeseries_q1_0$age %>% summary()
+  #  Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# -9.00   35.00   51.00   49.13   65.00   80.00 
+
+#filter to voters
+anes_timeseries_q1_voters <- anes_timeseries_q1_0 %>% 
+  filter(voted_early_in_gen_election == 1 | 
+           plan_to_vote_in_gen_election == 1)
+
+anes_timeseries_q1_voters %>% nrow()
+# 7624
+
+100*(1 - (anes_timeseries_q1_voters %>% nrow())/(anes_timeseries_q1_0 %>% nrow()))
+#Dropped 6.7% of survey respodents who did not vote/did not plan to vote in the 2020 general election
+
+
+# Are survey respondents who voted/will vote who answered 80+ or -9 (refused) more likely to be republican or democrat?
+h1 <- anes_timeseries_q1_voters %>% 
+  filter(party_of_registration_str_edited == "Democrat") %>% 
+  select(age, party_of_registration_str_edited)
+  
+h2 <- anes_timeseries_q1_voters %>% 
+  filter(party_of_registration_str_edited == "Republican") %>% 
+  select(age, party_of_registration_str_edited)
+
+hist(h1$age, col=rgb(0,0,1,0.5),
+     main = "Age of Survey Respondents by Political Party", 
+     xlab = "Age (years)", ylab = "Sampled Percentile", freq = FALSE, right = TRUE)
+hist(h2$age, freq = FALSE, col=rgb(1,0,0,0.5), 
+     add=T, right = TRUE)
+legend("topleft", c("Democrat", "Republican"), lwd=10, col=c(rgb(0,0,1,0.5), rgb(1,0,0,0.5)))
+box()
+
+#The resulting histogram illustrates that Republican data has higher rates of 80+ years of age and do not respond.
+
+
+ 
 
 ```
 
@@ -327,25 +345,7 @@ saveRDS(anes_timeseries_q1_0, file = "Data/anes_key_fields_forQ2.rds")
 
 ```{r q1 exploratory analysis, echo=FALSE, warning=TRUE, message=FALSE}
 
-anes_timeseries_q1_0 %>% nrow()
-# 8280
-
-#filter to voters
-anes_timeseries_q1 <- anes_timeseries_q1_0 %>% 
-  filter(voted_early_in_gen_election == 1 | 
-           plan_to_vote_in_gen_election == 1)
-
-anes_timeseries_q1 %>% nrow()
-# 7628
-
-anes_timeseries_q2 <- anes_timeseries_q1_0 %>% 
-  filter((voted_early_in_gen_election == 1 | 
-           plan_to_vote_in_gen_election == 1) & 
-           party_of_registration_str_edited == "Democrat")
-
-anes_timeseries_q2 %>% nrow()
-# 2775 rows
-
+#JUN UNLESS YOU WANT ANY OF THE BELOW INFO, FEEL FREE TO DELETE THIS SECTION!!!!
 
 # Exploratory analysis of weighted dems vs republicans. Still needs age and stats tests
 #Option 1

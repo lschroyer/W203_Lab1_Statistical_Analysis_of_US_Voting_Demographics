@@ -5,6 +5,7 @@ output: pdf_document
 ---
 
 ```{r load packages, echo=TRUE, warning=FALSE, message=FALSE}
+rm(list = ls())
 library(dplyr)
 library(ggplot2) 
 library(tidyverse) # if you want more, but still core, toolkit
@@ -16,12 +17,14 @@ anes_timeseries_raw2 <- readRDS(file = "Data/anes_key_fields_forQ2.rds") %>%
   select(id,
          biden_rating,# = V201151, Main Variable
          harris_rating,# = V201153, Main Variable
-         biden_likability,# = V201106, Potential Secondary Variable
-         biden_dislikability,# = V201108, Potential Secondary Variable
-         biden_leadership_skills,# = V201208, Potential Secondary Variable
-         biden_caring_for_people,# = V201209, Potential Secondary Variable
-         biden_knowledgeable,# = V201210, Potential Secondary Variable
-         biden_honest,# = V201211, Potential Secondary Variable
+         #ToDo - drop these
+         # biden_likability,# = V201106, Potential Secondary Variable
+         # biden_dislikability,# = V201108, Potential Secondary Variable
+         # biden_leadership_skills,# = V201208, Potential Secondary Variable
+         # biden_caring_for_people,# = V201209, Potential Secondary Variable
+         # biden_knowledgeable,# = V201210, Potential Secondary Variable
+         # biden_honest,# = V201211, Potential Secondary Variable
+         
          voted_early_in_gen_election, #cleaned in script 01
          plan_to_vote_in_gen_election, #cleaned in script 01
          party_of_registration_str_edited) #cleaned in script 01
@@ -32,7 +35,7 @@ anes_timeseries_raw2 %>% nrow()
 # 8168 rows
 anes_timeseries_raw2 %>% glimpse
 
-#filter to democratic voters (note these responses were cleaned in script 01)
+#filter to democrat voters (note these responses were cleaned in script 01)
 anes_timeseries_q2 <- anes_timeseries_raw2 %>% 
   filter((voted_early_in_gen_election == 1 | 
            plan_to_vote_in_gen_election == 1) & 
@@ -67,23 +70,23 @@ anes_timeseries_q2 %>%
   rename(count = n) %>%
   arrange(desc(count)) %>%
   mutate(freq = round(count/sum(count)*100,2))
-# 1.69% of respondees refused to answer for Biden enthusiasm. The rest provided a numerical value.
+# 1.69% of respondents refused to answer for Biden enthusiasm. The rest provided a numerical value.
 
 anes_timeseries_q2 %>%
   count(harris_enthus_response_type) %>%
   rename(count = n) %>%
   arrange(desc(count)) %>%
   mutate(freq = round(count/sum(count)*100,2))
-# 1.95% of respondees refused to answer Hariss. 0.11% didn't recognize Harris as a candidate for VP and 0.07% didn't know where to rate. The rest provided a numerical value.
+# 1.95% of respondents refused to answer Harris. 0.11% didn't recognize Harris as a candidate for VP and 0.07% didn't know where to rate her. The rest provided a numerical value.
 
 anes_timeseries_q2 %>%
   count(biden_enthus_response_type, harris_enthus_response_type) %>%
   rename(count = n) %>%
   arrange(desc(count)) %>%
   mutate(freq = round(count/sum(count)*100,2))
-# 1.33% provide a response for Biden but not for Harris while 0.9% provided a response for Hariss but not Biden. 0.8% didn't provide a reponse for either. 96.97% provided numerical responses.
+# 1.33% provide a response for Biden but not for Harris while 0.9% provided a response for Harris but not Biden. 0.8% didn't provide a response for either. 96.97% provided numerical responses.
 
-#Biden avg response for missing Hariss Data
+#Biden avg response for missing Harris Data
 anes_timeseries_q2 %>% 
   filter(harris_enthus_response_type != 1 & biden_enthus_response_type == 1) %>% 
   select(biden_rating) %>% 
@@ -191,8 +194,8 @@ h2 <- anes_timeseries_q2 %>%
   filter(harris_rating >= 0 & harris_rating <= 100)
 
 hist(h2$harris_rating, col=rgb(0,0,1,0.5),
-     main = "Age of Survey Respondents by Political Party", 
-     xlab = "Age (years)", ylab = "Sampled Percentile", freq = FALSE, right = TRUE)
+     main = "UPDATE", 
+     xlab = "UPDATE", ylab = "UPDATE", freq = FALSE, right = TRUE)
 hist(h1$biden_rating, freq = FALSE, col=rgb(1,0,0,0.5), 
      add=T, right = TRUE)
 legend("topleft", c("Harris", "Biden"), lwd=10, col=c(rgb(0,0,1,0.5), rgb(1,0,0,0.5)))
