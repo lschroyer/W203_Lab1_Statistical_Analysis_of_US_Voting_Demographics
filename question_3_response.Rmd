@@ -5,29 +5,75 @@ output: pdf_document
 ---
 
 ```{r load packages, echo=TRUE, warning=FALSE, message=FALSE}
+rm(list = ls())
 library(dplyr)
 library(ggplot2) 
 library(tidyverse) # if you want more, but still core, toolkit
 ```
 
 ```{r load and clean data, echo=FALSE, warning=TRUE, message=FALSE}
-anes_timeseries_raw3 <- readRDS(file = "Data/anes_key_fields.rds")
+anes_timeseries_raw3 <- readRDS(file = "Data/anes_key_fields_forQ3.rds") %>% 
+  select(id, 
+         gov_approval_covid_response,# = V201145, Main Variable
+         gov_approval_covid_response2,# = V201146, Main Variable
+         voted_for_governor,# = V201066, Potential Secondary Variable
+         voted_for_governor2,# = V201067, Potential Secondary Variable
+         voted_for_governor3,# = V201070, Potential Secondary Variable
+         voted_for_governor4,# = V201073,Potential Secondary Variable
+         covid_household_tested,# = V201624, Main Variable
+         covid_household_suspected)# = V201625, Main Variable
+
 anes_timeseries_raw3 %>% glimpse()
 
+########Gov. Approval########
 anes_timeseries_raw3 %>% count(gov_approval_covid_response)
+# 1. Approve
+# 2. Disapprove
+# -8. Don’t know
+# -9. Refused
 anes_timeseries_raw3 %>% count(gov_approval_covid_response2)
+# 1. Strongly
+# 2. Not strongly
+# -1. Inapplicable
+# -8. Don’t know
+# -9. Refused
 
 anes_timeseries_raw3 %>% 
   count(gov_approval_covid_response, gov_approval_covid_response2) %>% 
-  arrange(desc(gov_approval_covid_response), desc(gov_approval_covid_response2))
+  rename(count = n) %>% 
+  arrange(desc(count)) %>% 
+  mutate(freq = round(count/sum(count)*100,2))
 
-anes_timeseries_q3 <- anes_timeseries_raw3 %>% 
+#   gov_approval_covid_response gov_approval_covid_response2 count  freq
+# 1                           1                            1  3212 38.79
+# 2                           2                            1  2251 27.19
+# 3                           1                            2  1862 22.49
+# 4                           2                            2   893 10.79
+# 5                          -9                           -1    36  0.43
+# 6                          -8                           -1    16  0.19
+# 7                           1                           -9     8  0.10
+# 8                           1                           -8     1  0.01
+# 9                           2                           -9     1  0.01
+#0.54% of the respondents refused to answer. Drop from the analysis
+anes_timeseries_raw3 <- anes_timeseries_raw3 %>% 
+  filter(gov_approval_covid_response != -9 &
+           gov_approval_covid_response2 != -9)
+
+
+# Create a Likert Variable from two variables measuring approval/disapproval and degree of approval/disapproval.
+anes_timeseries_q3 <- anes_timeseries_raw3 %>%
   mutate(gov_approval_covid_response_new = case_when(
-    gov_approval_covid_response == 1 & gov_approval_covid_response2 == 1 ~ "Strongly Approve",
-    gov_approval_covid_response == 2 & gov_approval_covid_response2 == 1 ~ "Strongly Disapprove",
-    gov_approval_covid_response == 1 & gov_approval_covid_response2 == 2 ~ "Not Strongly Approve",
-    gov_approval_covid_response == 2 & gov_approval_covid_response2 == 2 ~ "Not Strongly Disapprove",
-    T ~ "Other"
+    gov_approval_covid_response == 2 & gov_approval_covid_response2 == 1 ~ 1, #“Strongly Disapprove”
+    gov_approval_covid_response == 2 & gov_approval_covid_response2 == 2 ~ 2, #“Not Strongly Disapprove”
+    gov_approval_covid_response == 1 & gov_approval_covid_response2 == 2 ~ 3, #“Not Strongly Approve”
+    gov_approval_covid_response == 1 & gov_approval_covid_response2 == 1 ~ 4, #“Strongly Approve”
+    T ~ 99
+  )) %>%
+# Recode the Disapprove (2) and Approve (1) values to binary
+  mutate(gov_approval_covid_response_binary = case_when(
+    gov_approval_covid_response == 1 ~ 1,
+    gov_approval_covid_response == 2 ~ 0,
+    T ~ 99
   ))
 
 anes_timeseries_q3 %>% 
@@ -36,6 +82,62 @@ anes_timeseries_q3 %>%
   arrange(desc(count)) %>% 
   mutate(freq = round(count/sum(count)*100,2))
 
+
+
+########Covid Household########
+# ANYONE IN HOUSEHOLD TESTED POS FOR COVID-19
+# 1. Someone in my household tested positive
+# 2. No one tested positive
+# -5. Interview breakoff (sufficient partial IW)
+# -9. Refused
+
+anes_timeseries_q3 %>% 
+  count(covid_household_tested) %>% 
+  rename(count = n) %>% 
+  arrange(desc(count)) %>% 
+  mutate(freq = round(count/sum(count)*100,2))
+#   covid_household_tested count  freq
+# 1                      2  7859 95.43
+# 2                      1   286  3.47
+# 3                     -9    53  0.64
+# 4                     -5    37  0.45
+
+# Less than 1.1% didn't answer the tested positive for Covid response
+
+
+# Has anyone in your household been suspected of having
+# COVID-19 based on their symptoms, or not?
+# 1. Suspected of having COVID-19
+# 2. No one has been suspected of having COVID-19
+# -5. Interview breakoff (sufficient partial IW)
+# -9. Refused
+anes_timeseries_q3 %>% 
+  count(covid_household_suspected) %>% 
+  rename(count = n) %>% 
+  arrange(desc(count)) %>% 
+  mutate(freq = round(count/sum(count)*100,2))
+#   covid_household_tested count  freq
+# 1                         2  7153 86.86
+# 2                         1   993 12.06
+# 3                        -9    52  0.63
+# 4                        -5    37  0.45
+  
+# Less than 1.1% also didn't answer the suspected of having Covid response.
+
+anes_timeseries_q3 %>% 
+  count(covid_household_tested, covid_household_suspected) %>% 
+  rename(count = n) %>% 
+  arrange(desc(count)) %>% 
+  mutate(freq = round(count/sum(count)*100,2))
+
+# Less than 1.1% also didn't answer either question. Drop for this analysis.
+
+anes_timeseries_q3 <- anes_timeseries_q3 %>% 
+  filter(covid_household_tested %in% c(1,2) | 
+         covid_household_suspected %in% c(1,2)) 
+
+100*(1-(anes_timeseries_q3 %>% nrow()/anes_timeseries_raw3 %>% nrow()) )
+#1.1% of survey responses dropped in this cleaning analysis.
 ```
 
 
