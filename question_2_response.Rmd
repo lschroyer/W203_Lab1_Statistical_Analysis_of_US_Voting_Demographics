@@ -14,6 +14,7 @@ rm(list = ls())
 library(dplyr)
 library(ggplot2) 
 library(tidyverse) # if you want more, but still core, toolkit
+library(knitr)
 ```
 
 ```{r load and clean data, echo=FALSE, warning=TRUE, message=FALSE, results='hide', fig.show='hide'}
@@ -187,12 +188,15 @@ h2 <- anes_timeseries_q2 %>%
   select(harris_rating) %>% 
   filter(harris_rating >= 0 & harris_rating <= 100)
 hist(h2$harris_rating, col=rgb(0,0,1,0.5),
-     main = "Biden vs. Harris Voter Enthusiastic Rating", 
+     main = "Fig. 1. Biden vs. Harris Voter Enthusiastic Rating", 
      xlab = "Rating/Score", ylab = "Percentage", freq = FALSE, right = TRUE)
 hist(h1$biden_rating, freq = FALSE, col=rgb(1,0,0,0.5), 
      add=T, right = TRUE)
 legend("topleft", c("Harris", "Biden"), lwd=10, col=c(rgb(0,0,1,0.5), rgb(1,0,0,0.5)))
 box()
+
+
+
 ```
 
 ## Most appropriate test 
@@ -215,7 +219,22 @@ There were some assumptions for the test to be valid.
 
 The goal of this test was to exam if one candidate were statistically more favored by the voters than the other. The Null Hypothesis for the test was p = 0.5, which meant the two candidates were equally favored by the voters. We used a two-tailed test in this study, since we didn't know which candidate had more + signs at the beginning.    
 
+```{r Table, echo=FALSE, warning=TRUE, message=FALSE}
 
+Biden_signs <- c(779)
+Harris_signs <- c(765)
+Total_Trials <- c(1544)
+# Join the variables to create a data frame
+df <- data.frame(Biden_signs,Harris_signs,Total_Trials)
+
+kable(
+  df,
+  digits = 2,
+  caption = "Counts of Signs of Voters' Enthusiastic Ratings", 
+  booktabs = TRUE)
+
+
+```
 
 ```{r Most appropriate test, echo=TRUE, warning=TRUE, message=FALSE, results='hide'}
 
