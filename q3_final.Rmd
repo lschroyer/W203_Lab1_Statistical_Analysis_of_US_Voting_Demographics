@@ -1,0 +1,359 @@
+---
+title: 'Lab 1: Question 3'
+author: "Jun Qian, Lucas Schroyer, Ryan Mitchell, Oliver Chang"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+
+---
+\clearpage
+```{r additional installations required for analysis, echo=FALSE, warning=FALSE, message=FALSE}
+#install.packages("magrittr")
+#install.packages("kableExtra")
+#tinytex::install_tinytex()
+#install.packages("plotrix")
+#install.packages("purr")
+#install.packages("haven")
+#install.packages("DescTools")
+```
+
+```{r load packages, echo=FALSE, warning=FALSE, message=FALSE}
+rm(list = ls())
+library(dplyr)
+library(ggplot2) 
+library(tidyverse) 
+library(magrittr)
+library(kableExtra)
+require(plotrix)
+library(purrr)
+library(haven)
+library(tidyverse)
+library(DescTools)
+```
+
+```{r load data, echo=FALSE, warning=TRUE, message=FALSE}
+## read in initial data frame
+# https://electionstudies.org/data-center/2020-time-series-study/
+# codebook
+# https://electionstudies.org/wp-content/uploads/2021/02/anes_timeseries_2020_userguidecodebook_20210211.pdf
+anes_timeseries_2020_stata_20210211 <- read_dta("Data/anes_timeseries_2020_stata_20210211.dta")
+labelled_df <- anes_timeseries_2020_stata_20210211
+names_list <- c()
+id_list <- c()
+for (var_tmp in names(labelled_df)) {
+  name_tmp <- attributes(zap_labels(labelled_df[[var_tmp]]))$label
+  id_list <- c(id_list, var_tmp)
+  names_list <- c(names_list, name_tmp)
+}
+#names_list %>% head()
+id_key <- data.frame("id" = id_list, "desc" = names_list)
+# View(id_key)
+rm(names_list, id_list)
+```
+
+``` {r clean data part 1, echo=FALSE, warning=TRUE, message=FALSE}
+# The study interviewed respondents in a pre-election survey that was
+# conducted between August 18, 2020 and November 3, 2020. Election day was
+# November 3, 2020. The study re-interviewed as many as possible of the same
+# respondents in a post-election survey that was conducted between November 8,
+# 2020 and January 4, 2021.
+# The data should be analyzed using weights to accurately represent the population.
+# Sampling errors should be calculated using methods that account for the complex
+# sample design and the effects of weighting on variance.
+# For analysis of the complete pre-election dataset,
+# including all cases and representative of the 2020 electorate, use the full sample
+# weight, V200010a. This weight is for the full pre-election
+# dataset, consisting of the combination of sample groups for the webonly, mixed web, and mixed video modes, and the 2016-2020 panel cases combined. Most analyses should use this weight unless the sample group is intended to be limited to one of the subsets below
+# What are weighted datasets?
+# 
+# Weighted datasets are frequently found in survey research because the respondents to a survey are sampled from a larger population of interest. The respondents to the sample represent themselves and others in their "weight class" who were not included in the sample. So the weights essentially inflate (or deflate) the value for each row in the dataset to represent the population.
+anes_timeseries_raw <- anes_timeseries_2020_stata_20210211 %>% 
+  select(weight_all_samples = V200010a,
+         # variance_unit = V200010b,
+         # variance_stratum = V200010c,
+         interview_type = V200002,
+         # sample_type = V200003,
+         #    # 2. ANES 2016-2020 Panel
+         #    # 3. 3Ar1 Fresh sample: web only, replicate 1
+         #    # 4. 3Ar2 Fresh sample: web only, replicate 2
+         #    # 5. 3B Fresh sample: web or phone
+         #    # 6. 3C Fresh sample: video, web, or phone
+         # ----key filters----#
+         registered_to_vote_loc = V201008,
+         
+         # ----question 1 fields ----#
+         # Democrat vs Republican Age in 2020
+         party_of_registration = V201018,
+         democrat_party_rating = V201156,
+         republican_party_rating = V201157,
+         age = V201507x,
+         voted_early_in_gen_election = V201022,
+         plan_to_vote_in_gen_election = V201032,
+         
+         # ----question 2 fields ----#
+         # Democratic voters excited about Joe Biden or Kamala Harris
+         biden_rating = V201151,
+         harris_rating = V201153,
+         biden_likability = V201106,
+         biden_dislikability = V201108,
+         biden_leadership_skills = V201208,
+         biden_caring_for_people = V201209,
+         biden_knowledgeable = V201210,
+         biden_honest = V201211,
+         
+         # ----question 3 fields ----#
+         # Covid household approval of governor's handleing of the pandemic
+         voted_for_governor = V201066,
+         voted_for_governor2 = V201067,
+         voted_for_governor3 = V201070,
+         voted_for_governor4 = V201073,
+         gov_approval_covid_response = V201145,
+         gov_approval_covid_response2 = V201146,
+         covid_household_tested = V201624,
+         covid_household_suspected = V201625
+         ) %>% 
+  # remove labels from haven package
+  mutate_all(zap_labels) %>% 
+  mutate(
+    
+    # TODO - delete
+    interview_type_char = case_when(
+      `interview_type` == 1 ~ "Video",
+      `interview_type` == 2 ~ "Telephone",
+      `interview_type` == 3 ~ "Web",
+      T ~ "NA"),
+    
+    registered_to_vote_status = case_when(
+      registered_to_vote_loc %in% c(1,2) ~ T,
+      registered_to_vote_loc == 3 ~ F,
+      T ~ NA),
+    party_of_registration_str = case_when(
+      party_of_registration == 1 ~ "Democrat",
+      party_of_registration == 2 ~ "Republican",
+      party_of_registration == 4 ~ "None_or_independent",
+      party_of_registration == 5 ~ "other",
+      T ~ "NA"),
+    
+    democrat_party_rating_2 = case_when(
+      democrat_party_rating <= 100 & democrat_party_rating >= 0 ~ democrat_party_rating,
+      T ~ -1,
+    ),
+    republican_party_rating_2 = case_when(
+      republican_party_rating <= 100 & republican_party_rating >= 0 ~ republican_party_rating,
+      T ~ -1,
+    )
+  ) %>% 
+  mutate(id = paste0("ID_",row_number())) %>% #create an ID
+  select(-registered_to_vote_loc, -party_of_registration, -democrat_party_rating, -republican_party_rating) %>% 
+  select(id, everything())
+#Drop the attributes associated with the HAVEN package. Extraneous information
+anes_timeseries_raw_tmp <- lapply(anes_timeseries_raw, FUN=function(x){data.frame(as.matrix(x),stringsAsFactors = F)}) %>% as.data.frame()
+names(anes_timeseries_raw_tmp) <- names(anes_timeseries_raw)
+anes_timeseries_raw <- anes_timeseries_raw_tmp
+rm(anes_timeseries_raw_tmp)
+#anes_timeseries_raw %>% glimpse()
+#save raw data for scripts 02 and 03
+saveRDS(anes_timeseries_raw, file = "Data/anes_key_fields_forQ3.rds")
+```
+
+
+```{r load and clean data part 2, echo=FALSE, warning=TRUE, message=FALSE, results='hide'}
+anes_timeseries_raw3 <- readRDS(file = "Data/anes_key_fields_forQ3.rds") %>% 
+  select(id, 
+         gov_approval_covid_response,# = V201145, Main Variable
+         gov_approval_covid_response2,# = V201146, Main Variable
+         voted_for_governor,# = V201066, Potential Secondary Variable
+         voted_for_governor2,# = V201067, Potential Secondary Variable
+         voted_for_governor3,# = V201070, Potential Secondary Variable
+         voted_for_governor4,# = V201073,Potential Secondary Variable
+         covid_household_tested,# = V201624, Main Variable
+         covid_household_suspected)# = V201625, Main Variable
+
+#Get counts of all possible Governor COVID Response combinations (representing V201145 and V201146)
+anes_timeseries_raw3 %>% 
+  count(gov_approval_covid_response, gov_approval_covid_response2) %>% 
+  rename(count = n) %>% 
+  arrange(desc(count)) %>% 
+  mutate(freq = round(count/sum(count)*100,2))
+
+#Filter to remove refusal and unsure responses from the variables measuring approval/disapproval of Governor's COVID response
+anes_timeseries_q3 <- anes_timeseries_raw3 %>% 
+  filter(gov_approval_covid_response > 0 &
+           gov_approval_covid_response2 > 0)
+
+#After filtering out refusal/unsure responses for Governor COVID approvals, get counts of all possible COVID in the household variable combinations (representing V201624 and V201625)
+anes_timeseries_q3 %>% 
+  count(covid_household_tested, covid_household_suspected) %>% 
+  rename(count = n) %>% 
+  arrange(desc(count)) %>% 
+  mutate(freq = round(count/sum(count)*100,2))
+
+#Given low volumes of refusals/interview breakoffs, filter out these responses as well.
+anes_timeseries_q3 <- anes_timeseries_q3 %>% 
+  filter(covid_household_tested > 0 &
+           covid_household_suspected > 0)
+
+
+#Finally, create a Likert Variable from two variables measuring approval/disapproval and degree of approval/disapproval.
+anes_timeseries_q3 <- anes_timeseries_q3 %>%
+  mutate(gov_approval_covid_response_new = case_when(
+    gov_approval_covid_response == 2 & gov_approval_covid_response2 == 1 ~ 1, #“Strongly Disapprove”
+    gov_approval_covid_response == 2 & gov_approval_covid_response2 == 2 ~ 2, #“Not Strongly Disapprove”
+    gov_approval_covid_response == 1 & gov_approval_covid_response2 == 2 ~ 3, #“Not Strongly Approve”
+    gov_approval_covid_response == 1 & gov_approval_covid_response2 == 1 ~ 4, #“Strongly Approve”
+    T ~ 99
+  )) %>%
+  mutate(gov_approval_covid_response_str = case_when(
+    gov_approval_covid_response == 2 & gov_approval_covid_response2 == 1 ~ 'Strongly Disapprove',
+    gov_approval_covid_response == 2 & gov_approval_covid_response2 == 2 ~ 'Not Strongly Disapprove',
+    gov_approval_covid_response == 1 & gov_approval_covid_response2 == 2 ~ 'Not Strongly Approve',
+    gov_approval_covid_response == 1 & gov_approval_covid_response2 == 1 ~ 'Strongly Approve',
+    T ~ 'Other'
+  )) %>%
+#Recode the Disapprove (2) and Approve (1) values to binary for possible use in statistical test
+  mutate(gov_approval_covid_response_binary = case_when(
+    gov_approval_covid_response == 1 ~ 1,
+    gov_approval_covid_response == 2 ~ 0,
+    T ~ 99
+  ))
+
+
+#Calculate collective percentage of sample dropped
+(length(anes_timeseries_raw3$id) - length(anes_timeseries_q3$id))/length(anes_timeseries_raw3$id) 
+
+```
+## Importance and Context
+
+Key research question: "Are survey respondents who have had someone in their home infected by COVID-19 more likely to disapprove of the way their governor is handling the pandemic?"
+
+COVID was a prominent issue in the 2020 elections, as voters weighed the economic costs of potential lockdowns and perceived infringements on personal freedoms against the health risks associated with contracting the virus. As we have seen, COVID response varies significantly at the national, state, and local levels, with regional differences in mask mandate policy, travel and quarantine restrictions, and dining rules. Ultimately, though, the state and local governments decide which businesses can operate and whether or not to enact lockdowns, and the governor heads the executive branch of every state. 
+
+There is evidence to suggest that the topic of COVID has become politicized (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7447862/), which in turn suggests that state and local government officials may take voter attitudes and preferences into consideration, along with scientific data on public health and safety, when deciding their COVID response policies. Hence, the answer to this research question could have downstream impacts on public health and economic activity.
+
+## Description of Data
+
+We will address this research question using data from the 2020 American National Election Studies (ANES), an observational dataset based on a sample of respondents drawn from the YouGov platform. 
+
+In order to answer this question, we first need to define two groups. The first group is the subset of respondents that have experienced a COVID infection in their home. We defined this group using a combination of two variables (V201624 and V201625), which represent whether anyone in the survey respondent's household had tested positive for COVID and whether anyone in the respondent's household had displayed COVID-like symptoms, respectively. For the purposes of our statistical test, we included all respondents that responded in the affirmative to *either* of these questions in this group. This decision was taken as a consequence of:
+
+\setlength{\leftskip}{1cm}
+
+  1) A small sample size for confirmed COVID positive tests from a member of the respondent's household, representing just 284 responses (3.5% of the total sample after filtering the survey responses as described below). By including respondents that indicated that a household member had COVID symptoms, we increased the group size to 1062 (13.1%), thereby increasing the power of the statistical test. 
+
+  2) An assumption that merely suspecting that someone in the house has contracted COVID would be sufficient to demonstrate an association with a higher/lower governor COVID approval rating, if in fact there is a relationship between the two variables.
+
+\setlength{\leftskip}{0pt}
+
+The second group, representing respondents with no COVID illnesses in the household, includes only those that indicated no positive tests for *and* no symptoms of COVID.
+
+A portion of survey responses were dropped from the analysis for the following reasons:
+
+**Governor Approval Related Omissions**: 
+
+\setlength{\leftskip}{1cm}
+
+  1) Some respondents refused to answer whether they approved/disapproved (V201145) of their Governor's handling of COVID or the extent to which they approved/disapproved (V201146). This accounted for 0.54% of survey responses.
+  2) Some respondents indicated that they did not know enough to form an opinion as to whether they approved or disapproved of their Governor's handling of COVID (V201145), or did not know to what extent they approved or disapproved (V201146). This accounted for an incremental 0.21% of survey responses. 
+  
+\setlength{\leftskip}{0pt}
+
+**COVID in Household Related Omissions**: 
+
+\setlength{\leftskip}{1cm}
+
+  3) Some respondents refused to answer whether anyone in their household tested positive (V201624) or exhibited symptoms of COVID (V201625). This accounted for an incremental 0.71% of survey responses.
+  4) Some respondents experienced an "interview breakoff," and their responses for whether anyone in their household tested positive (V201624) or exhibited symptoms of COVID (V201625) were not recorded. This accounted for an incremental 0.45% of survey responses.
+  
+\setlength{\leftskip}{0pt}
+
+Collectively, we dropped 1.91% of the survey data responses for the reasons stated, an amount which our group did not expect to meaningfully alter the outcome of our statistical analysis.
+
+With the groups defined, we now discuss the operationalization of a variable to measure approval/disapproval of the respondent's Governor with respect to their handling of COVID. Our team opted to create a 4 item Likert variable, which is a combination of V201145 and V201146 with values mapping to "Strongly Disapprove" (1), "Not Strongly Disapprove" (2), "Not Strongly Approve" (3), and "Strongly Approve" (4), respectively. Relative to a binary variable which maps to Approve or Disapprove, a four item Likert variable provides additional insight into the *degree* to which the respondent's approval or disapproval of the Governor may have been impacted by whether someone in their household contracted COVID, enabling a more accurate assessment of the potential relationship between household COVID infections and approval or disapproval of the Governor's policies. Indeed, we do see some differences in the distribution of Governor COVID approval ratings by COVID/Non-COVID households (Figure 1). In particular, a greater percentage of households with no confirmed or suspected cases of COVID responded that they 'Strongly Approve' of their Governor's handling of the virus than households with a confirmed or suspected COVID case. 
+
+Lastly, our team noted that the survey data contained weighting variables (such as V200010a) intended to correct for sampling bias in an effort to more accurately represent the population. However, with instructor approval, we have opted not to include them in our analysis given the tight 1-week deadline.
+
+```{r make summary table, echo = FALSE} 
+summary_table <- anes_timeseries_q3 %>% 
+  mutate(
+    hh_covid = case_when(
+      covid_household_suspected == 1 | covid_household_tested == 1 ~ 'Confirmed or Suspected COVID Case in Household', 
+      covid_household_suspected == 2 & covid_household_tested == 2 ~ 'No Confirmed or Suspected COVID Case in Household'), 
+    approve_disapprove = case_when(
+      gov_approval_covid_response_binary == 1 ~ 'Approve', 
+      gov_approval_covid_response_binary == 0 ~ 'Disapprove')) %$% 
+  prop.table(
+    table(
+      hh_covid, 
+      approve_disapprove))
+```
+
+```{r summary-table, echo = FALSE, message=FALSE, results='hide'}
+kable(
+  summary_table,
+  digits = 2,
+  caption = 'Cross Tab of Households with Confirmed or Suspected COVID Cases and Governor Approval/Disapproval Status', 
+  booktabs = TRUE
+)
+```
+
+```{r covid vs noncovid gov approval, echo=FALSE, fig.cap='Governor Approval Ratings, COVID Household vs. Non-COVID Household', fig.pos='!b', fig.height = 4, fig.width = 6}
+require(plotrix)
+covid <- anes_timeseries_q3 %>% 
+  mutate(
+    hh_covid = case_when(
+      covid_household_suspected == 1 | covid_household_tested == 1 ~ 'Confirmed or Suspected COVID Case in Household', 
+      covid_household_suspected == 2 & covid_household_tested == 2 ~ 'No Confirmed or Suspected COVID Case in Household')) %>%
+  filter(gov_approval_covid_response_new != 99, hh_covid == 'Confirmed or Suspected COVID Case in Household' ) %>% 
+  select(gov_approval_covid_response_new, hh_covid)
+
+noncovid <- anes_timeseries_q3 %>% 
+  mutate(
+    hh_covid = case_when(
+      covid_household_suspected == 1 | covid_household_tested == 1 ~ 'Confirmed or Suspected COVID Case in Household', 
+      covid_household_suspected == 2 & covid_household_tested == 2 ~ 'No Confirmed or Suspected COVID Case in Household')) %>%
+  filter(gov_approval_covid_response_new != 99, hh_covid == 'No Confirmed or Suspected COVID Case in Household' ) %>% 
+  select(gov_approval_covid_response_new, hh_covid)
+
+l <- list(covid$gov_approval_covid_response_new, noncovid$gov_approval_covid_response_new)
+multhist(l, breaks = seq(0.5,4.5), freq=FALSE, ylim = c(0,0.5), col = c(rgb(0,0,1,0.5), rgb(1,0,0,0.5)),
+main = 'Governor Approval Rating Density 
+COVID vs. Non-COVID Households', xlab = "Approval Rating: 1 = Strongly Disapprove, 2 = Not Strongly Disapprove
+3 = Not Strongly Approve, 4 = Strongly Approve", ylab = "Density")
+legend("topleft", c("COVID", "Non-COVID"), lwd=10, col=c(rgb(0,0,1,0.5), rgb(1,0,0,0.5)))
+box()
+```
+
+## Most appropriate test 
+
+Because the Likert variable we created is measured on an ordinal scale, a non-parametric test is appropriate. We make the assumption that the data is unpaired, as it originates from different survey respondents. However, it is possible that multiple people within the same household responded to the 2020 ANES survey, allowing for the possibility of multiple responses from the same observational unit (i.e. the household). In addition, given the large discrepancy in sample group sizes (1062 vs. 7060), we should use a test that is not affected by an imbalance in sample sizes. 
+
+Given our data is unpaired and ordinal, we determined that a Wilcoxon Ranked Sum Test is appropriate as it also is robust against group sample size differences. The Wilcoxon Ranked Sum test requires the following assumptions to be true:
+
+- Ordinal scale. The data levels showing an increase in intensity from "Strongly Disapprove" to "Strongly Approve," so this assumption is met.
+
+- i.i.d. data. Each pair ($\sf{X_{i}}$, $\sf{Y{i}}$) must be drawn independent of other pairs from the same distribution. As discussed above, it is possible that multiple individuals from the same household responded to the ANES survey, introducing potential dependencies in the data. It is also possible that respondents tell friends and other family members about the survey (as there is a paid incentive to participate), resulting in clusters of similar responses. However, it is difficult to ascertain or quantify this phenomenon, and it is a limitation that we will take into consideration when interpreting the results of our test.
+
+## Test, results and interpretation
+```{r Wilcoxon Rank-Sum Test, echo=TRUE, results='hide'}
+X <- filter(anes_timeseries_q3, (covid_household_suspected == 1 | 
+covid_household_tested == 1))$gov_approval_covid_response_new
+
+Y <- filter(anes_timeseries_q3, (covid_household_suspected == 2 & 
+covid_household_tested == 2))$gov_approval_covid_response_new
+
+wilcox.test(X,Y, paired = FALSE, alternative = "two.sided")
+```
+
+Although the question is posed in a way that suggests potentially using a one-tailed test, our team determined that a two-tailed test would be more appropriate because we could not rule out the possibility of an effect in the opposite direction. For example, there may be respondents who support less strict COVID policies (in alignment with their Governor) and these respondents may be more likely to have someone in their household contract COVID.
+
+Using the two-tailed Ranked Sum Test, our null hypothesis states the probability that a draw from our created Likert variable for Governor approval from a COVID infected household (X) ranks higher than a draw from a non-COVID infected household (Y) is the same as the probability that a draw from a non-COVID infected household (Y) ranks higher than a draw from a COVID infected household (X). This can be written as $\sf{H_{o}:} \space P(X>Y) = P(X<Y)$ with an alternative hypothesis $\sf{H_{a}:}$ $P(X>Y) != P(X<Y)$.
+
+```{r effect size, echo=FALSE, results='hide'}
+n <- length(X) + length(Y)
+Z_stat <- qnorm(wilcox.test(X,Y, paired = FALSE, alternative = "two.sided")$p.value/2)
+effect_size <- abs(Z_stat/sqrt(n))
+```
+
+The Wilcoxon Ranked Sum Test returned a p-value of `r round(wilcox.test(X,Y, paired = FALSE, alternative = "two.sided")$p.value,3)`, which means that using a typical alpha of 0.05, we reject the null hypothesis that $P(X>Y) = P(X<Y)$ and assert that there is a statistically significant difference in the distributions of Governor approval ratings between households with confirmed or suspected COVID cases and those without. In terms of practical significance, however, the absolute value of the effect size correlation for this test is a mere `r round(effect_size,3)`, which is generally considered small (< 0.1). So while we can say that survey respondents who have had someone in their home infected by COVID are more likely to disapprove of the way their governor is handling the pandemic, the effect size is marginal and unlikely to result in any policy changes. 
