@@ -189,7 +189,7 @@ anes_timeseries_q1_0 %>%
 #all variables are the expected structure
 
 ```
-In this study, we defined "voters" as who 1)registered to vote and either 2) voted early in general election or 3) plan to vote. This meant, to be eligible as voters for our analysis, the respondents should either voted already or already register to vote and also plan to vote for president. We then looked into the registered party of the voters. If there is registered party information, we assigned it as party affiliation for the respondent.
+In this study, we defined "voters" as who 1) registered to vote and either 2) voted early in general election or 3) plan to vote. This meant, to be eligible as voters for our analysis, the respondents should either voted already or already register to vote and also plan to vote for president. We then looked into the registered party of the voters. If there is registered party information, we assigned it as party affiliation for the respondent.
 
 ``` {r Define voter 1, echo=FALSE, results='hide', warning=TRUE, message=FALSE}
 
@@ -232,12 +232,10 @@ anes_timeseries_q1_0 %>% nrow()
 table(anes_timeseries_q1_0$party_of_registration_str)
 # 3929 NAs to reclassify 
 ``` 
-However, we noticed that around 48% of the voters do not have applicable registered party information. Since it consists a significant portion of the sample, we tried to infer their partisan leanings for these respondents based on if they have a strong preference for one party. To determine such preference, we used the difference in party rating, a "feeling thermometer" range from 0-100. If one party is rated 50 higher than the other party, we assigned a party to that respondent since it indicates a clear partisan leaning. To illustrate this party assignment methodology, Figure 1 shows the preference of Democratic party over Republican. The right tail with value greater than 50 represents all the respondents we assigned as Democratic voters. Respondents on the left tail with less than -50 were assigned as Republic voters
+However, we noticed that around 48% of the voters do not have applicable registered party information. Since it consists a significant portion of the sample, we tried to infer their partisan leanings for these respondents based on if they have a strong preference for one party. To determine such preference, we used the difference in party rating, a "feeling thermometer" range from 0-100. If one party is rated 50 higher than the other party, we assigned a party to that respondent since it indicates a clear partisan leaning. To illustrate this party assignment methodology, Figure 1 shows the preference of Democratic party over Republican. The right tail with value greater than 50 represents all the respondents we assigned as Democratic voters. Respondents on the left tail with less than -50 were assigned as Republic voters. In this way, we assigned party information to 2105 out of 3929 respondents whose registered party information is inapplicable, bringing the total sample size to 7624. 
 
-In this way, we assigned party information to 2105 out of 3929 respondents whose registered party information is inapplicable, bringing the total sample size to 7624. 
-
-``` {r Define Dem/Rep voter, echo=FALSE, results='hide', warning=TRUE, message=FALSE, fig.cap="If a survey response's abs(Democratic Rating - Republican Rating) > 50 and they are listed as NA for their party affiliation, remap that respondent to either a Democrat/Republican from NA.", fig.pos='!b', fig.height = 3, fig.width = 4}
-#}, fig.align = 'right'}fig.pos='!b'
+``` {r Define Dem/Rep voter, echo=FALSE, results='hide', warning=TRUE, message=FALSE, fig.cap="If a survey response's abs(Democratic Rating - Republican Rating) > 50 and they are listed as NA for their party affiliation, remap that respondent to either a Democrat/Republican from NA.",  fig.height = 2.75, fig.width = 4}
+#}, fig.align = 'right'}fig.pos='!b' fig.pos='!b',
 # Infer partisan leaning for party registration info inapplicable voters
 
 anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
@@ -248,8 +246,9 @@ anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>%
 # par(mar=c(0,0,2,0))
 # par(oma=c(2,2,2,2))
 H <- hist(anes_timeseries_q1_0$dem_party_fav, breaks = 20, 
-          ylim = c(0,1200),
-          main = "Democrat - Republican Party Ratings", xlab = NULL)#, labels = TRUE)
+          ylim = c(0,1400),
+          main = "Democrat - Republican Party Ratings", xlab = NULL,
+          cex.main=0.75)#, labels = TRUE)
 # View the paired delta in ratings
 text(x = H$mids, y = H$counts, labels = H$counts, cex = 0.7, pos = 3, srt=90)
 
@@ -340,6 +339,9 @@ anes_timeseries_q1_voters %>% nrow()
 
 ```
 
+
+
+
 Then, we examined the age of the voters. The age is by year expect for all the people above 80 who are bucketed into the "80+" bin. In addition, people refused to answer the age question were assigned as -9. Figure 2 shows there are more Democratic voters (purple) in all the age buckets below 50 and more Republican (orange) voters in age buckets above 50, including the "80+" bin, as well as "refuse to answer" bucket. 
 
 Since there is little information available to impute the age of the "refuse to answer" group. We excluded them from the samples for statistics tests calculation and hypothesis test. For the samples in "80+" bin, we assumed them as age of 80 in the analysis. But more details of the impacts will be discussed in the last section - "test limitation" section.
@@ -375,20 +377,24 @@ mean_med_age_joined <- mean_med_age_all %>%
 
 ```
 
-```{r Q1 visulization of age distribution for two groups, echo=FALSE, warning=FALSE, message=FALSE, out.width="49%", out.height="30%", fig.cap="Age of Survey Respondents by Political Party and Table 1: Age by Party for the Unfiltered Dataset and for with the 80+ Age Bin Removed", fig.show='hold',fig.align='center'}
-
+```{r Plot 1 Q1 visulization of age distribution for two groups, echo=FALSE, warning=FALSE, message=FALSE, out.width="49%", out.height="30%", fig.show='hold',fig.align='center'}
+# , fig.cap="Age of Survey Respondents by Political Party"
 plot1 <- kable(
   mean_med_age_joined,
   digits = 2,
-  # caption = 'Age by Party for: (1) Unfiltered Dataset and (2) 80+ Age Bin Removed', 
-  caption = NULL,
+  caption = 'Age by Party for: (1) Unfiltered Dataset and (2) 80+ Age Bin Removed',
+  # caption = NULL,
   booktabs = TRUE
-) %>%
-  save_kable("plot1.png")
+) #%>%
+  #save_kable("plot1.png")
+plot1
+# knitr::include_graphics("plot1.png")
+```
 
+```{r Plot 2 Q1 visulization of age distribution for two groups, echo=FALSE, warning=FALSE, message=FALSE, out.width="49%", out.height="30%", fig.cap="Age of Survey Respondents by Political Party (negative values are respondents who refused to answer)", fig.show='hold',fig.align='center'}
 # Are survey respondents who voted/will vote who answered 80+ or -9 (refused) more likely to be republican or democrat?
-par(mar=c(0,0,0,0))
-par(oma=c(0,0,0,0))
+# par(mar=c(0,0,2,0))
+# par(oma=c(0,0,1,0))
 h1 <- anes_timeseries_q1_voters %>% 
   filter(party_of_registration_str_edited == "Democrat") %>% 
   select(age, party_of_registration_str_edited)
@@ -397,21 +403,23 @@ h2 <- anes_timeseries_q1_voters %>%
   filter(party_of_registration_str_edited == "Republican") %>% 
   select(age, party_of_registration_str_edited)
 
-png(file="plot2.png", width = 2500, height = 2500, pointsize = 100)
+# png(file="plot2.png", width = 2500, height = 2500, pointsize = 100)
 hist(h1$age, col=rgb(0,0,1,0.5),
-     main = "", 
-     xlab = "Age (years)", ylab = "Sampled Percentile", freq = FALSE, right = TRUE)
+     main = "Age of Voters by Party",
+     xlab = "Age (years)", ylab = "Sampled Percentile", freq = FALSE, right = TRUE, 
+     cex.lab=1.5, cex.axis=1.5, cex.main=1.5)
 hist(h2$age, freq = FALSE, col=rgb(1,0,0,0.5), 
      add=T, right = TRUE)
 legend("topleft", c("Democrat", "Republican"), lwd=10, col=c(rgb(0,0,1,0.5), rgb(1,0,0,0.5)))
 box()
-dev.off()
+# dev.off()
 
 #The resulting histogram illustrates that Republican data has higher rates of 80+ years of age and do not respond.
 
 
 # knitr::include_graphics(c("path/to/img1","path/to/img1"))
-knitr::include_graphics(c("plot2.png","plot1.png"))
+# knitr::include_graphics(c("plot2.png","plot1.png"))
+# knitr::include_graphics("plot2.png")
 
 ```
 
