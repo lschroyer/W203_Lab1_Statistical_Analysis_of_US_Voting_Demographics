@@ -1,4 +1,3 @@
-
 ---
 title: 'Lab 1: Question 2'
 author: "Jun Qian, Lucas Schroyer, Ryan Mitchell, Oliver Chang"
@@ -22,14 +21,6 @@ anes_timeseries_raw2 <- readRDS(file = "Data/anes_key_fields_forQ2.rds") %>%
   select(id,
          biden_rating,# = V201151, Main Variable
          harris_rating,# = V201153, Main Variable
-         #ToDo - drop these
-         # biden_likability,# = V201106, Potential Secondary Variable
-         # biden_dislikability,# = V201108, Potential Secondary Variable
-         # biden_leadership_skills,# = V201208, Potential Secondary Variable
-         # biden_caring_for_people,# = V201209, Potential Secondary Variable
-         # biden_knowledgeable,# = V201210, Potential Secondary Variable
-         # biden_honest,# = V201211, Potential Secondary Variable
-         
          voted_early_in_gen_election, #cleaned in script 01
          plan_to_vote_in_gen_election, #cleaned in script 01
          party_of_registration_str_edited) #cleaned in script 01
@@ -149,9 +140,9 @@ text(x = 1:5,
 <!-- You can (and should delete each of these comments lines in your final report) --> 
 <!-- Explain why the reader should care about your research question. -->
 
-Are Democratic voters more enthusiastic about Joe Biden or Kamala Harris?
+Research question: "Are Democratic voters more enthusiastic about Joe Biden or Kamala Harris?"
 
-Voting is the heart and basis of the American democracy. Every single vote is counted equally and it represents the will and voice from the people. If one thinks a single vote doesn't matter because it is just one vote in a billion, he/she could be wrong. In a tight election race, such as the 2020 presidential election, the elected candidates secured only slight more votes in the swinging states than their opponents by sometime less than 1%. This tiny lead eventually determined who was going to run the Office. Therefore, every single vote counts, and every single vote is important. Under such circumstances, the enthusiasm of the voters towards the presidential candidates is critical to higher turnout numbers, which affects the results of the election. As a matter of fact, understanding which candidate is more attractive/likable to the voters is crucial for the parties to adjust their election strategies/decisions.      
+Voting is the heart and basis of the American democracy. Every single vote is counted equally and it represents the will and voice of the people. Throughout American history, a few number of votes have determined the outcome of key elections. For example in the 2020 presidential election, the elected candidates secured only slight more votes in the swinging states than their opponents by sometime less than 1%. This tiny lead eventually determined who was going to run the Office. Under such circumstances, high levels of enthusiasm of the voters towards the presidential candidates is accompanied by high rates of voter turnout, which can affect the results of the election. As a matter of fact, understanding which candidate is more attractive/likable to the voters is crucial for the parties to adjust their election strategies and campaigning decisions.      
 
 
 
@@ -170,12 +161,13 @@ Voting is the heart and basis of the American democracy. Every single vote is co
 <!-- What changes do you make to the data and why? --> 
 
 
-To address the question stated earlier, we downloaded the pre-election data from the 2020 American National Election Studies (ANES) site. We then extracted the following variables related to this question for further processing and exploration:
-\
-biden_rating, harris_rating, voted_early_in_gen_election, plan_to_vote_in_gen_election, and party_of_registration_str_edited
-\
-\
-The two variables, biden_rating and harris_rating, were the main variables we used to infer the voter's enthusiastic rating in this study. The two variables were metric and (should) ranged from 0 to 100. We applied filters excluding samples that were outside of this range or with missing data. We also filtered the data down to Democratic voters only, using the following variables: voted_early_in_gen_election, plan_to_vote_in_gen_election, and party_of_registration_str_edited. In this study, we defined the Democratic voters as voters who (1) were registered as Democrats, (2) intended to vote for the Democrats, or (3) early-voted for the Democrats. The total voter counts were 2691 with all the filters applied. Fig. 1 illustrates the normalized histogram of the Democratic voters' enthusiastic ratings of Biden vs. Harris. The distribution of the ratings were very similar to each other. The ratings both peak between 80 and 90, with skewed distributions to the left, due to the constraint of the rating (capped at 100).
+To answer our research question, we downloaded the pre-election data from the 2020 American National Election Studies (ANES) site. We then extracted the following variables related to this question for further processing and exploration:
+
+- biden_rating and harris_rating; 
+- voted_early_in_gen_election and plan_to_vote_in_gen_election; 
+- and party_of_registration_str_edited
+
+The two variables, biden_rating and harris_rating, were the main variables we used to infer the voter's enthusiastic rating in this study. These two variables were metric and ranged in integer value from 0 to 100. We applied filters excluding missing or inappropriate responses. We also filtered the data down to Democratic voters only, using the following variables: voted_early_in_gen_election, plan_to_vote_in_gen_election, and party_of_registration_str_edited. In this study, we defined Democratic voters as voters who were registered as Democrats and either intended to vote or voted early. The total voter counts were 2691 with all the filters applied. Fig. 1 illustrates the normalized histogram of the Democratic voters' enthusiastic ratings of Biden vs. Harris. The distribution of the ratings were very similar to each other. The ratings both peak between 80 and 90, with skewed distributions to the left, due to the constraint of the rating (capped at 100).
 
 
 
@@ -194,9 +186,6 @@ hist(h1$biden_rating, freq = FALSE, col=rgb(1,0,0,0.5),
      add=T, right = TRUE)
 legend("topleft", c("Harris", "Biden"), lwd=10, col=c(rgb(0,0,1,0.5), rgb(1,0,0,0.5)))
 box()
-
-
-
 ```
 
 ## Most appropriate test 
@@ -220,50 +209,38 @@ There were some assumptions for the test to be valid.
 The goal of this test was to exam if one candidate were statistically more favored by the voters than the other. The Null Hypothesis for the test was p = 0.5, which meant the two candidates were equally favored by the voters. We used a two-tailed test in this study, since we didn't know which candidate had more + signs at the beginning.    
 
 ```{r Table, echo=FALSE, warning=TRUE, message=FALSE}
-
 Biden_signs <- c(779)
 Harris_signs <- c(765)
 Total_Trials <- c(1544)
 # Join the variables to create a data frame
 df <- data.frame(Biden_signs,Harris_signs,Total_Trials)
-
 kable(
   df,
   digits = 2,
   caption = "Counts of Signs of Voters' Enthusiastic Ratings", 
   booktabs = TRUE)
-
-
 ```
 
 ```{r Most appropriate test, echo=TRUE, warning=TRUE, message=FALSE, results='hide'}
-
-
 biden_harris <- anes_timeseries_q2 %>% select(biden_rating, harris_rating) %>%  
       filter(harris_rating >= 0 & harris_rating <= 100 
              & biden_rating >= 0 & biden_rating <= 100) 
-
 biden <- biden_harris %>% select(biden_rating)
 harris <- biden_harris %>% select(harris_rating)
-
 biden_higher <- ifelse((biden - harris) > 0, 1, 0) 
 total <- ifelse((biden - harris) != 0, 1, 0) 
-
 binom.test(sum(biden_higher), sum(total), p = 0.5, 
          alternative = c("two.sided"), 
          conf.level = 0.95) 
 
-
+harris_higher = sum(total)- sum(biden_higher)
+r = (sum(biden_higher)-harris_higher)/sum(total)
 ```
 
 ## Test, results and interpretation
 <!-- What are the results of your test? --> 
 <!-- What do the results of this test mean? What is the practical significance? --> 
 
-The test results indicated that the Null Hypothesis was not rejected. The reported p-value was 0.74 for a two-tailed Sign Test. This meant, statistically, the Democratic voters weren't more enthusiastic for either Biden or Harris in the 2020 presidential election. The results suggested that there was no single Democratic candidate that attracted statistically more votes than the other. The results could also suggest that the Democratic voters were equally satisfied (both had high ratings in average) with the two candidates. Therefore, no further major adjustment for the campaign strategy regarding the two candidate was required. Practically speaking, if the results came back to be significant, then the Democratic Party might consider strategies to enhance the enthusiastic rating for the candidate with lower ratings or consider other candidates.     
-
-
-
-
+The test results indicated that the Null Hypothesis was not rejected. The reported p-value was `r round(binom.test(sum(biden_higher), sum(total), p = 0.5, alternative = c("two.sided"), conf.level = 0.95)$p.value,2)` for a two-tailed Sign Test. This meant, statistically, the Democratic voters weren't more enthusiastic for either Biden or Harris in the 2020 presidential election. The results suggested that there was no single Democratic candidate that attracted statistically more votes than the other. The results could also suggest that the Democratic voters were equally satisfied (both had high ratings in average) with the two candidates. In addition, the effect size (r) using proportion approach was `r round(r,2)`. The effect size was really small that the difference didn't have practical significance either. Therefore, no further major adjustment for the campaign strategy regarding the two candidate was required. Practically speaking, if the results came back to be significant, then the Democratic Party might consider strategies to enhance the enthusiastic rating for the candidate with lower ratings or consider other candidates.     
 
 
