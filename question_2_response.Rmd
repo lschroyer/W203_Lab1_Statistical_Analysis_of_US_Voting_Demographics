@@ -22,14 +22,6 @@ anes_timeseries_raw2 <- readRDS(file = "Data/anes_key_fields_forQ2.rds") %>%
   select(id,
          biden_rating,# = V201151, Main Variable
          harris_rating,# = V201153, Main Variable
-         #ToDo - drop these
-         # biden_likability,# = V201106, Potential Secondary Variable
-         # biden_dislikability,# = V201108, Potential Secondary Variable
-         # biden_leadership_skills,# = V201208, Potential Secondary Variable
-         # biden_caring_for_people,# = V201209, Potential Secondary Variable
-         # biden_knowledgeable,# = V201210, Potential Secondary Variable
-         # biden_honest,# = V201211, Potential Secondary Variable
-         
          voted_early_in_gen_election, #cleaned in script 01
          plan_to_vote_in_gen_election, #cleaned in script 01
          party_of_registration_str_edited) #cleaned in script 01
@@ -149,9 +141,9 @@ text(x = 1:5,
 <!-- You can (and should delete each of these comments lines in your final report) --> 
 <!-- Explain why the reader should care about your research question. -->
 
-Are Democratic voters more enthusiastic about Joe Biden or Kamala Harris?
+Research question: "Are Democratic voters more enthusiastic about Joe Biden or Kamala Harris?"
 
-Voting is the heart and basis of the American democracy. Every single vote is counted equally and it represents the will and voice from the people. If one thinks a single vote doesn't matter because it is just one vote in a billion, he/she could be wrong. In a tight election race, such as the 2020 presidential election, the elected candidates secured only slight more votes in the swinging states than their opponents by sometime less than 1%. This tiny lead eventually determined who was going to run the Office. Therefore, every single vote counts, and every single vote is important. Under such circumstances, the enthusiasm of the voters towards the presidential candidates is critical to higher turnout numbers, which affects the results of the election. As a matter of fact, understanding which candidate is more attractive/likable to the voters is crucial for the parties to adjust their election strategies/decisions.      
+Voting is the heart and basis of the American democracy. Every single vote is counted equally and it represents the will and voice of the people. Throughout American history, a few number of votes have determined the outcome of key elections. For example in the 2020 presidential election, the elected candidates secured only slight more votes in the swinging states than their opponents by sometime less than 1%. This tiny lead eventually determined who was going to run the Office. Under such circumstances, high levels of enthusiasm of the voters towards the presidential candidates is accompanied by high rates of voter turnout, which can affect the results of the election. As a matter of fact, understanding which candidate is more attractive/likable to the voters is crucial for the parties to adjust their election strategies and campaigning decisions.      
 
 
 
@@ -170,12 +162,13 @@ Voting is the heart and basis of the American democracy. Every single vote is co
 <!-- What changes do you make to the data and why? --> 
 
 
-To address the question stated earlier, we downloaded the pre-election data from the 2020 American National Election Studies (ANES) site. We then extracted the following variables related to this question for further processing and exploration:
-\
-biden_rating, harris_rating, voted_early_in_gen_election, plan_to_vote_in_gen_election, and party_of_registration_str_edited
-\
-\
-The two variables, biden_rating and harris_rating, were the main variables we used to infer the voter's enthusiastic rating in this study. The two variables were metric and (should) ranged from 0 to 100. We applied filters excluding samples that were outside of this range or with missing data. We also filtered the data down to Democratic voters only, using the following variables: voted_early_in_gen_election, plan_to_vote_in_gen_election, and party_of_registration_str_edited. In this study, we defined the Democratic voters as voters who (1) were registered as Democrats, (2) intended to vote for the Democrats, or (3) early-voted for the Democrats. The total voter counts were 2691 with all the filters applied. Fig. 1 illustrates the normalized histogram of the Democratic voters' enthusiastic ratings of Biden vs. Harris. The distribution of the ratings were very similar to each other. The ratings both peak between 80 and 90, with skewed distributions to the left, due to the constraint of the rating (capped at 100).
+To answer our research question, we downloaded the pre-election data from the 2020 American National Election Studies (ANES) site. We then extracted the following variables related to this question for further processing and exploration:
+
+- biden_rating and harris_rating; 
+- voted_early_in_gen_election and plan_to_vote_in_gen_election; 
+- and party_of_registration_str_edited
+
+The two variables, biden_rating and harris_rating, were the main variables we used to infer the voter's enthusiastic rating in this study. These two variables were metric and ranged in integer value from 0 to 100. We applied filters excluding missing or inappropriate responses. We also filtered the data down to Democratic voters only, using the following variables: voted_early_in_gen_election, plan_to_vote_in_gen_election, and party_of_registration_str_edited. In this study, we defined Democratic voters as voters who were registered as Democrats and either intended to vote or voted early. The total voter counts were 2691 with all the filters applied. Fig. 1 illustrates the normalized histogram of the Democratic voters' enthusiastic ratings of Biden vs. Harris. The distribution of the ratings were very similar to each other. The ratings both peak between 80 and 90, with skewed distributions to the left, due to the constraint of the rating (capped at 100).
 
 
 
