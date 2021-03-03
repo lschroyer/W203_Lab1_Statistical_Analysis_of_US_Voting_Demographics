@@ -88,54 +88,54 @@ anes_timeseries_q3 <- anes_timeseries_q3 %>%
 ```
 ## Importance and Context
 
-Are survey respondents who have had someone in their home infected by COVID-19 more likely to disapprove of the way their governor is handling the pandemic?
+Key research question: "Are survey respondents who have had someone in their home infected by COVID-19 (COVID) more likely to disapprove of the way their governor is handling the pandemic?"
 
-COVID-19 was a prominent issue in the 2020 elections, as voters weighed the economic costs of potential lockdowns and perceived infringements on personal freedoms against the health risks associated with contracting the virus. As we have seen, COVID-19 response varies significantly at the national, state, and local levels. Some cities and states have mask mandates while others don't. Indoor dining is permissible in some areas, but not in others. And of course, travel and quarantine restrictions vary from region to region. Ultimately, though, the state and local governments decide which businesses can operate and whether or not to enact lockdowns, and the governor heads the executive branch of every state. 
+COVID was a prominent issue in the 2020 elections, as voters weighed the economic costs of potential lockdowns and perceived infringements on personal freedoms against the health risks associated with contracting the virus. As we have seen, COVID response varies significantly at the national, state, and local levels, with regional differences in mask mandate policy, travel and quarantine restrictions, and dining rules. Ultimately, though, the state and local governments decide which businesses can operate and whether or not to enact lockdowns, and the governor heads the executive branch of every state. 
 
-There is evidence to suggest that the topic of COVID-19 has become politicized (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7447862/), which in turn suggests that state and local government officials may take voter attitudes and preferences into consideration, along with scientific data on public health and safety, when deciding their COVID-19 response policies. If it could be shown that voter approval/disapproval ratings are affected by whether someone in their home contracts the virus, it could have an impact on public policy in the form of either more or less restrictive COVID policies. These potential policy changes could have downstream impacts on public health and economic activity.
+There is evidence to suggest that the topic of COVID has become politicized (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7447862/), which governments' balancing voter opinions with scientific public health data when deciding their COVID response policies. If voter approval/disapproval ratings are affected by whether someone in their home contracted the virus, it could have an impact future COVID policies, ultimately impacting public health and economic activity.
 
 ## Description of Data
 
-We will address this question using data from the 2020 American National Election Studies (ANES).  This is an observational dataset, based on a sample of respondents drawn from the YouGov platform. 
+We will address this research question using data from the 2020 American National Election Studies (ANES), an observational dataset based on a sample of respondents drawn from the YouGov platform. 
 
-In order to answer this question, we first need to define two groups. The first group is the subset of respondents that have experienced a COVID-19 infection in their home. We defined this group using a combination of two variables (V201624 and V201625), which represent whether anyone in the survey respondent's household had tested positive for COVID-19 and whether anyone in the respondent's household had displayed COVID-like symptoms, respectively. For the purposes of our statistical test, we included all respondents that responded in the affirmative to *either* of these questions in this group. This decision was taken as a consequence of:
+To answer this question, we first define two groups (i.e. the subset of respondents that have experienced a COVID infection in their home vs those that have not). We defined these groups using a combination of two survey reponse variables: household positive COVID test (V201624) and household suspected COVID-like symptoms (V201625). We decided to includ all respondents that responded in the affirmative to *either* of these questions in this group because:
 
-\setlength{\leftskip}{2cm}
+\setlength{\leftskip}{1cm}
 
-  1) A small sample size for confirmed COVID-19 positive tests from a member of the respondent's household, representing just 284 responses (3.5% of the total sample after filtering the survey responses as described below). By including respondents that indicated that a household member had COVID symptoms, we increased the group size to 1062 (13.1%), thereby increasing the power of the statistical test. 
+  1) A small sample size for confirmed COVID positive tests from a member of the respondent's household, representing just 284 responses (3.5% of the total sample after filtering the survey responses as described below). By including respondents that indicated that a household member had COVID symptoms, we increased the group size to 1062 (13.1%), thereby increasing the power of the statistical test. 
 
   2) An assumption that merely suspecting that someone in the house has contracted COVID would be sufficient to demonstrate an association with a higher/lower governor COVID approval rating, if in fact there is a relationship between the two variables.
 
 \setlength{\leftskip}{0pt}
 
-The second group, representing respondents with no COVID illnesses in the household, includes only those that indicated no positive tests for *and* no symptoms of COVID-19.
+The second group, representing respondents with no COVID illnesses in the household, includes only those that indicated no positive tests for *and* no symptoms of COVID.
 
 A portion of survey responses were dropped from the analysis for the following reasons:
 
 **Governor Approval Related Omissions**:
 
-\setlength{\leftskip}{2cm}
+\setlength{\leftskip}{1cm}
 
-  1) Some respondents refused to answer one of V201145 (PRE: APPROVE OR DISAPPROVE R’S GOVERNOR HANDLING COVID-19) or V201146 (PRE: HOW MUCH APPROVE/DISAPPROVE R’S GOVERNOR HANDLING COVID-19). Consequently, these responses could not be mapped into either a binary Approve/Disapprove or a Likert variable with values of Strongly Disapprove, Not Strongly Disapprove, Not Strongly Approve, and Strongly Approve. This accounted for 0.54% of survey responses.
+  1) Some respondents refused to answer one of V201145 (PRE: APPROVE OR DISAPPROVE R’S GOVERNOR HANDLING COVID-19) or V201146 (PRE: HOW MUCH APPROVE/DISAPPROVE R’S GOVERNOR HANDLING COVID-19). Consequently, these responses could not be mapped into either a binary Approve/Disapprove or a Likert variable with values of "Strongly Disapprove", "Not Strongly Disapprove", "Not Strongly Approve", and "Strongly Approve". This accounted for 0.54% of survey responses.
   
-  2) Some respondents indicated that they did not know enough to form an opinion as to whether they approved or disapproved of their Governor's handling of COVID-19 (V201145), or did not know to what extent they approved or disapproved (V201146). Our team decided to omit these responses as well, as opposed to mapping them to a 'Neutral' response in a Likert variable since, in our opinion, not knowing enough about a situation is not equivalent to having neutral feelings on it. This accounted for an incremental 0.21% of survey responses. 
+  2) Some respondents indicated that they did not know enough to form an opinion as to whether they approved or disapproved of their Governor's handling of COVID (V201145), or did not know to what extent they approved or disapproved (V201146). Our team decided to omit these responses as well, as opposed to mapping them to a 'Neutral' response in a Likert variable since, in our opinion, not knowing enough about a situation is not equivalent to having neutral feelings on it. This accounted for an incremental 0.21% of survey responses. 
 
 \setlength{\leftskip}{0pt}
 
 **COVID-19 in Household Related Omissions**:
 
-\setlength{\leftskip}{2cm}
+\setlength{\leftskip}{1cm}
 
-  3) Some respondents refused to answer one of V201624 (PRE: ANYONE IN HOUSEHOLD TESTED POS FOR COVID-19) or V201625 (PRE: ANYONE IN HOUSEHOLD COVID-19 BASED
+  3) Some respondents refused to answer one of V201624 (PRE: ANYONE IN HOUSEHOLD TESTED POS FOR COVID) or V201625 (PRE: ANYONE IN HOUSEHOLD COVID BASED
 ON SYMPTOMS). Consequently, we could not assign these respondents to one of our groups for comparison. This accounted for an incremental 0.71% of survey responses.
 
-  4) Some respondents experienced an "interview breakoff," and their responses for whether anyone in their household tested positive (V201624) or exhibited symptoms of COVID-19 (V201625) were not recorded. This accounted for an incremental 0.45% of survey responses.
+  4) Some respondents experienced an "interview breakoff," and their responses for whether anyone in their household tested positive (V201624) or exhibited symptoms of COVID (V201625) were not recorded. This accounted for an incremental 0.45% of survey responses.
 
 \setlength{\leftskip}{0pt}
 
-Collectively, we dropped 1.91% of the survey data responses for the reasons stated, an amount which our group did not expect to meaningfully alter the outcome of our statistical analysis. By eliminating question refusals, interview breakoffs, and uncertain responses, our data cleaning exercise effectively mapped all 4 variables discussed above down into binary variables.
+Collectively, we dropped 1.91% of the survey data responses for the reasons stated, an amount which our group did not expect to meaningfully alter the outcome of our statistical analysis. By eliminating question refusals, interview breakoffs, and uncertain responses, our data cleaning exercise effectively mapped all four variables of interest into binary variables.
 
-With the groups defined, we now discuss the operationalization of a variable to measure approval/disapproval of the respondent's Governor with respect to their handling of COVID-19. Our team opted to create a 4 item Likert variable using a combination of V201145 (PRE: APPROVE OR DISAPPROVE R’S GOVERNOR HANDLING COVID-19) and V201146 (PRE: HOW MUCH APPROVE/DISAPPROVE R’S GOVERNOR HANDLING COVID-19), with values ranging from 1 to 4. These values map to Strongly Disapprove (1), Not Strongly Disapprove (2), Not Strongly Approve (3), and Strongly approve (4), respectively. Relative to a binary variable which maps to Approve or Disapprove (akin to V201145), a 4 item Likert variable provides additional insight into the *degree* to which the respondent's approval or disapproval of the Governor may have been impacted by whether someone in their household contracted COVID-19. In our view, this additional level of detail allows us to make a more accurate assessment of whether or not a relationship exists between COVID-19 infections in the household and approval or disapproval of the Governor's policies. One downside to using a 4 item Likert Scale is that it does not allow respondents to provide a neutral answer to the question. However, using the binary response variable V201145 (PRE: APPROVE OR DISAPPROVE R’S GOVERNOR HANDLING COVID-19) would pose the same problem.
+With the groups defined, we now discuss the operationalization of a variable to measure approval/disapproval of the respondent's Governor with respect to their handling of COVID. Our team opted to create a 4 item Likert variable using a combination of V201145 (PRE: APPROVE OR DISAPPROVE R’S GOVERNOR HANDLING COVID) and V201146 (PRE: HOW MUCH APPROVE/DISAPPROVE R’S GOVERNOR HANDLING COVID), with values ranging from one to four. These values map to "Strongly Disapprove" (1), "Not Strongly Disapprove" (2), "Not Strongly Approve" (3), and "Strongly Approve" (4), respectively. Relative to a binary variable which maps to Approve or Disapprove (akin to V201145), a four item Likert variable provides additional insight into the *degree* to which the respondent's approval or disapproval of the Governor may have been impacted by whether someone in their household contracted COVID, enabling a more accurate assessment of the potential relationship between household COVID infections and approval or disapproval of the Governor's policies. One downside to using a four item Likert scale is that it does not allow respondents to provide a neutral answer to the question. However, a binary response variable V201145 (PRE: APPROVE OR DISAPPROVE R’S GOVERNOR HANDLING COVID) would pose the same problem.
 
 ```{r make summary table, echo = FALSE} 
 summary_table <- anes_timeseries_q3 %>% 
@@ -161,7 +161,7 @@ kable(
 )
 ```
 
-```{r covid vs noncovid gov approval, echo=FALSE, fig.cap='Governor Approval Ratings, COVID HH vs. Non-COVID HH', fig.pos='!b'}
+```{r covid vs noncovid gov approval, echo=FALSE, fig.cap='Governor Approval Ratings, COVID HH vs. Non-COVID HH', fig.pos='!b', fig.height = 4, fig.width = 6}
 require(plotrix)
 covid <- anes_timeseries_q3 %>% 
   mutate(
@@ -190,11 +190,9 @@ box()
 
 ## Most appropriate test 
 
-Because the Likert variable we created is measured on ordinal scales, a non-parametric test is appropriate. We make the assumption that the data is unpaired, as it originates from different survey respondents. However, it is possible that multiple people within the same household responded to the 2020 ANES survey, allowing for the possibility of multiple responses from the same observational unit (which is the household, in this specific question). In addition, given the large discrepancy in sample group sizes (1062 vs. 7060), we should use a test that is not affected by an imbalance in sample sizes. 
+Because the Likert variable we created is measured on ordinal scales, a non-parametric test is appropriate. We make the assumption that the data is unpaired, as it originates from different survey respondents. However, it is possible that multiple people within the same household responded to the 2020 ANES survey, allowing for the possibility of multiple responses from the same observational unit (i.e. the household). In addition, given the large discrepancy in sample group sizes (1062 vs. 7060), we should use a test that is not affected by an imbalance in sample sizes. 
 
-With unpaired, ordinal data, a Wilcoxon Ranked Sum Test is recommended. The Wilcoxon Ranked Sum Test has the added benefit of being robust against group sample size differences as well. 
-
-The Wilcoxon Ranked Sum test requires the following assumptions to be true:
+Given our data is unpaired and ordinal, we determined that a Wilcoxon Ranked Sum Test is appropriate as it also is robust against group sample size differences. The Wilcoxon Ranked Sum test requires the following assumptions to be true:
 
 - Ordinal scale. The data levels showing an increase in intensity from "Strongly Disapprove" to "Strongly Approve," so this assumption is met.
 
@@ -214,9 +212,9 @@ covid_household_tested == 2))$gov_approval_covid_response_new
 wilcox.test(X,Y, paired = FALSE, alternative = "two.sided")
 ```
 
-Although the question is posed in a way that suggests potentially using a one-tailed test (only testing whether COVID-19 infections in a respondent's household are associated with a higher likelihood of disapproval of the Governor's handling of the virus), our team determined that a two-tailed test would be more appropriate because we could not rule out the possibility of an effect in the opposite direction. For example, there may be respondents who support their Governor's lax COVID-19 policies (allowing indoor dining, no mask mandates, less restrictive quarantine rules) and these respondents may be more likely to have someone in their household contract COVID-19. Hence we believe COVID-19 infected households could potentially be associated with higher levels of approval for their Governor's policies.
+Although the question is posed in a way that suggests potentially using a one-tailed test (i.e. only testing whether COVID infections in a respondent's household are associated with a higher likelihood of disapproval of the Governor's handling of the virus), our team determined that a two-tailed test would be more appropriate because we could not rule out the possibility of an effect in the opposite direction. For example, there may be respondents who support less strict COVID-19 policies and these respondents may be more likely to have someone in their household contract COVID.
 
-Using the two-tailed Ranked Sum Test, our null hypothesis $\sf{H_{o}}$ states that the probability that a draw from our created Likert variable for Governor Approval from a COVID infected household (X) ranks higher than a draw from a non-COVID infected household (Y) is the same as the probability that a draw from a non-COVID infected household (Y) ranks higher than a draw from a COVID infected household (X). This can be written as $P(X>Y) = P(X<Y)$. Then our alternative hypothesis $\sf{H_{a}}$ could be written as $P(X>Y) != P(X<Y)$.
+Using the two-tailed Ranked Sum Test, our null hypothesis states the probability that a draw from our created Likert variable for Governor approval from a COVID infected household (X) ranks higher than a draw from a non-COVID infected household (Y) is the same as the probability that a draw from a non-COVID infected household (Y) ranks higher than a draw from a COVID infected household (X). This can be written as $\sf{H_{o}:} \space P(X>Y) = P(X<Y)$ with an alternative hypothesis $\sf{H_{a}:}$ $P(X>Y) != P(X<Y)$.
 
 
 ```{r effect size, echo=FALSE, results='hide'}
@@ -225,6 +223,4 @@ Z_stat <- qnorm(wilcox.test(X,Y, paired = FALSE, alternative = "two.sided")$p.va
 effect_size <- abs(Z_stat/sqrt(n))
 ```
 
-The Wilcoxon Rank Sum Test returned a p-value of `r round(wilcox.test(X,Y, paired = FALSE, alternative = "two.sided")$p.value,3)`, which means we reject the null hypothesis that $P(X>Y) = P(X<Y)$. 
-
-The effect size correlation for the Wilcoxon Rank Sum Test is `r round(effect_size,3)`
+The Wilcoxon Rank Sum Test returned a p-value of `r round(wilcox.test(X,Y, paired = FALSE, alternative = "two.sided")$p.value,3)`, which means we reject the null hypothesis that $P(X>Y) = P(X<Y)$. The effect size correlation for the Wilcoxon Rank Sum Test is `r round(effect_size,3)`
