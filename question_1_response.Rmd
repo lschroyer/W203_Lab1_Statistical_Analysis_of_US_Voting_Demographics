@@ -45,11 +45,7 @@ This is especially crucial since the turnout rate for the older people is much h
 
 We used the pre-election data from the 2020 American National Election Studies (ANES) site to address this question. The following variables are extracted for further processing and exploration this topic:
 
-Variables to define "voters": registered_to_vote_status(V201008), voted_early_in_gen_election(V201022), plan_to_vote_in_gen_election(V201032),
-
-Variables to define "party":  party_of_registration_str(V201018), democrat_party_rating(V201156), republican_party_rating(V201157),
-
-Variables to define "age": age(V201507x)
+registered_to_vote_status(V201008), voted_early_in_gen_election(V201022), plan_to_vote_in_gen_election(V201032),party_of_registration_str(V201018), democrat_party_rating(V201156), republican_party_rating(V201157),age(V201507x)
 
 ```{r load data, echo=FALSE, results='hide', warning=TRUE, message=FALSE}
 ## read in initial data frame
@@ -446,7 +442,6 @@ summary(RepVtrimmed)
 #the mean/median age of Dem voters is younger than Rep voters as well
 
 ```
-
 ## Most appropriate test
 
 To determine whether there is a statistical difference in the ages of Democratic voters and Republican voters, we compared the mean of the age of two groups using the Unpaired Welch-t Two Sample Test. The reasons we selected this test are as follows:
@@ -464,6 +459,7 @@ To determine whether there is a statistical difference in the ages of Democratic
 Therefore, we decided to use the Welch-t Two Sample Test. The Null Hypothesis for the test is that the means of the age of two voter groups are equal. We used a two-tailed test in this study because we didn't want to assume one group is older or younger than the other group beforehand.
 
 In addition to the statistical difference, we also would like to examine whether the difference is practically significant enough for us to act on. Therefore, we also calculated the effect size to reach a final conclusion.
+
 
 
 ```{r Q1 Hypotheis assumption, echo=FALSE, results='hide', fig.show='hide',warning=TRUE, message=FALSE}
