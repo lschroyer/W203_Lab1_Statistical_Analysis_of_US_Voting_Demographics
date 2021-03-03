@@ -1,21 +1,53 @@
 ---
 title: 'Lab 1: Question 1'
 author: "Jun Qian, Lucas Schroyer, Ryan Mitchell, Oliver Chang"
-output: pdf_document
----
 
-```{r load packages, echo=TRUE, warning=FALSE, message=FALSE}
+output:
+  pdf_document:
+    toc: true
+---
+\newpage
+
+```{r load packages, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
 rm(list = ls())
 library(dplyr)
-library(ggplot2) 
+library(ggplot2)
 library(purrr)
 library(haven)
 library(tidyverse)
 # install.packages("DescTools")
 library(DescTools)
+#install.packages("rstatix")
+library(rstatix)
+library(moments)
+library(magrittr)
+#install.packages("kableExtra")
+library(kableExtra)
+require(plotrix)
+#install.packages("magick")
+#install.packages("webshot")
+library("magick")
+library("webshot")
+webshot::install_phantomjs()
 ```
 
-```{r load data, echo=FALSE, warning=TRUE, message=FALSE}
+# Are Democratic voters older or younger than Republican voters in 2020?
+
+## Importance and Context
+
+Are Democratic voters older or younger than Republican voters in 2020?
+
+The age profile of the electorate is always one of the most important factors in forecasting and understanding American politics and election outcomes. People in different generations tend to gravitate to different political ideologies. In particular, it is generally believed that conservative values resonate more with older Americans, making them more likely to vote Republican. But is this stereotype true? We analyzed 2020 pre-election data to test whether there is an age difference between Democratic voters and Republic voters. If it can be shown that the ages of Democratic electorates and Republicans are not equal, there may be policy implications to consider as a result of which party is in power, as different administrations will prioritize initiatives that cater to their constituents. 
+
+This is especially crucial since the turnout rate for the older people is much higher. For example, in 2018 midterm elections, the turnout rate of people age 65 and above is 64%. In contrast, only 44% of people age 35-45 and 30% of people age 18-24 cast a ballot. 
+
+## Description of Data
+
+We used the pre-election data from the 2020 American National Election Studies (ANES) site to address this question. The following variables are extracted for further processing and exploration this topic:
+
+registered_to_vote_status(V201008), voted_early_in_gen_election(V201022), plan_to_vote_in_gen_election(V201032),party_of_registration_str(V201018), democrat_party_rating(V201156), republican_party_rating(V201157),age(V201507x)
+
+```{r load data, echo=FALSE, results='hide', warning=TRUE, message=FALSE}
 ## read in initial data frame
 # https://electionstudies.org/data-center/2020-time-series-study/
 
@@ -41,41 +73,24 @@ rm(names_list, id_list)
 
 
 ```
-
-``` {r clean data, echo=FALSE, warning=TRUE, message=FALSE}
+``` {r select variables, echo=FALSE, results='hide', warning=TRUE, message=FALSE}
 # The study interviewed respondents in a pre-election survey that was
 # conducted between August 18, 2020 and November 3, 2020. Election day was
 # November 3, 2020. The study re-interviewed as many as possible of the same
 # respondents in a post-election survey that was conducted between November 8,
 # 2020 and January 4, 2021.
 
-# The data should be analyzed using weights to accurately represent the population.
-# Sampling errors should be calculated using methods that account for the complex
-# sample design and the effects of weighting on variance.
-
 # For analysis of the complete pre-election dataset,
 # including all cases and representative of the 2020 electorate, use the full sample
-# weight, V200010a. This weight is for the full pre-election
-# dataset, consisting of the combination of sample groups for the webonly, mixed web, and mixed video modes, and the 2016-2020 panel cases combined. Most analyses should use this weight unless the sample group is intended to be limited to one of the subsets below
+# dataset, consisting of the combination of sample groups for the web only, mixed web, and mixed video modes, and the 2016-2020 panel cases combined.
 
-# What are weighted datasets?
-# 
-# Weighted datasets are frequently found in survey research because the respondents to a survey are sampled from a larger population of interest. The respondents to the sample represent themselves and others in their "weight class" who were not included in the sample. So the weights essentially inflate (or deflate) the value for each row in the dataset to represent the population.
 
-anes_timeseries_raw <- anes_timeseries_2020_stata_20210211 %>% 
-  select(weight_all_samples = V200010a,
-         # variance_unit = V200010b,
-         # variance_stratum = V200010c,
+anes_timeseries_raw <- anes_timeseries_2020_stata_20210211 %>%
+  select( weight_all_samples = V200010a,
          interview_type = V200002,
-         # sample_type = V200003,
-         #    # 2. ANES 2016-2020 Panel
-         #    # 3. 3Ar1 Fresh sample: web only, replicate 1
-         #    # 4. 3Ar2 Fresh sample: web only, replicate 2
-         #    # 5. 3B Fresh sample: web or phone
-         #    # 6. 3C Fresh sample: video, web, or phone
          # ----key filters----#
          registered_to_vote_loc = V201008,
-         
+
          # ----question 1 fields ----#
          # Democrat vs Republican Age in 2020
          party_of_registration = V201018,
@@ -84,7 +99,7 @@ anes_timeseries_raw <- anes_timeseries_2020_stata_20210211 %>%
          age = V201507x,
          voted_early_in_gen_election = V201022,
          plan_to_vote_in_gen_election = V201032,
-         
+
          # ----question 2 fields ----#
          # Democratic voters excited about Joe Biden or Kamala Harris
          biden_rating = V201151,
@@ -96,7 +111,7 @@ anes_timeseries_raw <- anes_timeseries_2020_stata_20210211 %>%
          biden_knowledgeable = V201210,
          biden_honest = V201211,
 
-         
+
          # ----question 3 fields ----#
          # Covid household approval of governor's handleing of the pandemic
          voted_for_governor = V201066,
@@ -107,29 +122,22 @@ anes_timeseries_raw <- anes_timeseries_2020_stata_20210211 %>%
          gov_approval_covid_response2 = V201146,
          covid_household_tested = V201624,
          covid_household_suspected = V201625
-         ) %>% 
+         ) %>%
   # remove labels from haven package
-  mutate_all(zap_labels) %>% 
+  mutate_all(zap_labels) %>%
   mutate(
-    
-    # TODO - delete
-    interview_type_char = case_when(
-      `interview_type` == 1 ~ "Video",
-      `interview_type` == 2 ~ "Telephone",
-      `interview_type` == 3 ~ "Web",
-      T ~ "NA"),
-    
     registered_to_vote_status = case_when(
       registered_to_vote_loc %in% c(1,2) ~ T,
       registered_to_vote_loc == 3 ~ F,
       T ~ NA),
+
     party_of_registration_str = case_when(
       party_of_registration == 1 ~ "Democrat",
       party_of_registration == 2 ~ "Republican",
       party_of_registration == 4 ~ "None_or_independent",
       party_of_registration == 5 ~ "other",
       T ~ "NA"),
-    
+
     democrat_party_rating_2 = case_when(
       democrat_party_rating <= 100 & democrat_party_rating >= 0 ~ democrat_party_rating,
       T ~ -1,
@@ -138,9 +146,9 @@ anes_timeseries_raw <- anes_timeseries_2020_stata_20210211 %>%
       republican_party_rating <= 100 & republican_party_rating >= 0 ~ republican_party_rating,
       T ~ -1,
     )
-  ) %>% 
+  ) %>%
   mutate(id = paste0("ID_",row_number())) %>% #create an ID
-  select(-registered_to_vote_loc, -party_of_registration, -democrat_party_rating, -republican_party_rating) %>% 
+  select(-registered_to_vote_loc, -party_of_registration, -democrat_party_rating, -republican_party_rating) %>%
   select(id, everything())
 
 #Drop the attributes associated with the HAVEN package. Extraneous information
@@ -155,10 +163,9 @@ anes_timeseries_raw %>% glimpse()
 saveRDS(anes_timeseries_raw, file = "Data/anes_key_fields_forQ3.rds")
 
 ```
-
-```{r EDA, echo=FALSE, warning=TRUE, message=FALSE}
-#Q1 and Q2 both use party information
-anes_timeseries_q1_0 <-  anes_timeseries_raw %>% 
+```{r select variables 2, echo=FALSE,results='hide', warning=TRUE, message=FALSE}
+#Q1 and Q2 both use party & voter information (biden & harris are for Q2)
+anes_timeseries_q1_0 <-  anes_timeseries_raw %>%
   select(id,
          #Q1 variables
          registered_to_vote_status,
@@ -167,31 +174,34 @@ anes_timeseries_q1_0 <-  anes_timeseries_raw %>%
          republican_party_rating_2,
          age,
          voted_early_in_gen_election,
-         plan_to_vote_in_gen_election, 
+         plan_to_vote_in_gen_election,
          #Q2 variables (carry through to minimize duplicate data cleaning steps)
          biden_rating,
-         harris_rating,
-         # biden_likability,
-         # biden_dislikability,
-         # biden_leadership_skills,
-         # biden_caring_for_people,
-         # biden_knowledgeable,
-         # biden_honest
+         harris_rating
   )
 #check the structure
-anes_timeseries_q1_0 %>% 
-  str() 
+anes_timeseries_q1_0 %>%
+  str()
 #all variables are the expected structure
+
+```
+For the purposes of this study, we defined "voters" as survey respondents who: 1) registered to vote (V201008) and either 2) voted early in general election(V201022) or 3) planned to vote(V201032). We then looked into the registered party of the voters. If there is registered party information(V201018), we assigned it as party affiliation for the respondent.
+
+``` {r Define voter 1, echo=FALSE, results='hide', warning=TRUE, message=FALSE}
 
 #########Registration Status########
 anes_timeseries_q1_0$registered_to_vote_status %>% summary()
-#less than .15% of respondents (i.e. 11) did not respond in a T/F manner. Drop these sites.
 
-anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
+#less than .15% of respondents (i.e. 11) did not respond in a T/F manner.
+#Drop these sites.
+
+anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>%
   filter(!is.na(registered_to_vote_status))
 anes_timeseries_q1_0 %>% nrow()
 # 8269
 
+```
+``` {r Define party affliation, echo=FALSE, results='hide', warning=TRUE, message=FALSE}
 ########Party Affiliation########
 anes_timeseries_q1_0 %>%
   count(party_of_registration_str) %>%
@@ -199,56 +209,76 @@ anes_timeseries_q1_0 %>%
   arrange(desc(count)) %>%
   mutate(freq = round(count/sum(count)*100,2))
 
-# Assumption, if respondent is NA for registered party but showed strong favoriability towards one party, then classify them as that type of potential voter 
+# Assumption, if respondent is NA for registered party but showed strong favoritability towards one party(delta greater than 50), then classify them as that party potential voter
 
-# Filter for rows where the respondent is registered with a political party and they indicate   
-anes_timeseries_q1_0 %>% 
+anes_timeseries_q1_0 %>%
   filter(party_of_registration_str == "NA" &
-        (democrat_party_rating_2 == -1 | republican_party_rating_2 == -1)) %>% 
+        (democrat_party_rating_2 == -1 | republican_party_rating_2 == -1)) %>%
   glimpse()
+
+
 # 81 instances where the respondent not registered with either party entered a non numeric rating for one or both of the party ratings (out of 8269 total). Drop from analysis.
 
 anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>%
     filter(!(party_of_registration_str == "NA" &
-        (democrat_party_rating_2 == -1 | republican_party_rating_2 == -1))) 
-anes_timeseries_q1_0 %>% nrow()  
+        (democrat_party_rating_2 == -1 | republican_party_rating_2 == -1)))
+anes_timeseries_q1_0 %>% nrow()
 # 8188
 
-anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
+table(anes_timeseries_q1_0$party_of_registration_str)
+# 3929 NAs to reclassify
+```
+However, we noticed that 48% of the survey respondents do not have applicable registered party information. Because this represents such a large portion of the sample, we decided to analyze other variables to determine whether there was a way to infer political party affiliation. To that end, we measured the respondents' difference in party rating(V201156,V201157), using "feeling thermometer" variables which ranged from 0-100. If one party was rated 50+ points higher than the other party (measured as seen below in the chart for democratic voters), we assigned that party to that respondent. To illustrate this party assignment methodology, Figure 1 shows the preference of Democratic party over Republican. The right tail with values greater than 50 represents all the respondents we assigned as Democratic voters. Respondents on the left tail with values below -50 were assigned as Republican voters.
+
+This party assignment methodology assigned party information to 2105 data points out of the 3929 respondents that did not have applicable registered party information, bringing the total sample size of eligible voters with clear party tendency to 7624. This larger sample will substantially increase the power of our statistical test.
+
+``` {r Define Dem/Rep voter, echo=FALSE, results='hide', warning=FALSE, message=FALSE, fig.pos='!b', fig.height = 3, fig.width = 4}
+#}, fig.align = 'right'}fig.pos='!b'
+# Infer partisan leaning for party registration info inapplicable voters
+
+anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>%
   mutate(dem_party_fav = democrat_party_rating_2 - republican_party_rating_2,
          rep_party_fav = republican_party_rating_2 - democrat_party_rating_2)
 
-hist(anes_timeseries_q1_0$dem_party_fav, breaks = 20, main = "Dem Rating - Rep Rating", xlab = NULL)
+# layout(matrix(c(1, 0, 0, 1, 0, 0, 1, 2, 3), 3, 3, byrow = TRUE))
+# par(mar=c(0,0,2,0))
+# par(oma=c(2,2,2,2))
+H <- hist(anes_timeseries_q1_0$dem_party_fav, breaks = 20,
+          ylim = c(0,1200),
+          main = "Democrat - Republican Party Ratings", xlab = NULL)#, labels = TRUE)
 # View the paired delta in ratings
+text(x = H$mids, y = H$counts, labels = H$counts, cex = 0.7, pos = 3, srt=90)
+
+
 
 #Use a cutoff of +/- 50 points to remap NA party registered respondents
-anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
+anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>%
   mutate(
     party_of_registration_str2 = case_when(
       dem_party_fav >= 50 ~ "Democrat", #Strong preference for Democrats
       rep_party_fav >= 50 ~ "Republican", #Strong preference for Republicans
       T ~ "NA"),
     party_of_registration_str3 = if_else(
-      party_of_registration_str == "NA",  
-      party_of_registration_str2, 
-      party_of_registration_str)  
+      party_of_registration_str == "NA",
+      party_of_registration_str2,
+      party_of_registration_str)
     )
 
-anes_timeseries_q1_0 %>% 
-  filter(party_of_registration_str != party_of_registration_str3) %>% 
+anes_timeseries_q1_0 %>%
+  filter(party_of_registration_str != party_of_registration_str3) %>%
   nrow()
+
+
 #added back 2105 rows were the party was previously classified as NA
 
-anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
-  select(-party_of_registration_str2, -dem_party_fav, 
-         -rep_party_fav, -democrat_party_rating_2, -republican_party_rating_2) %>% 
+anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>%
+  select(-party_of_registration_str2, -dem_party_fav,
+         -rep_party_fav, -democrat_party_rating_2, -republican_party_rating_2) %>%
   rename(party_of_registration_str_raw = party_of_registration_str,
          party_of_registration_str_edited = party_of_registration_str3)
 
-anes_timeseries_q1_0 %>% nrow()  
+anes_timeseries_q1_0 %>% nrow()
 #8188
-
-
 
 ########voted_early_in_gen_election or plan_to_vote_in_gen_election########
 # ALREADY VOTED IN GENERAL ELECTION
@@ -275,9 +305,9 @@ anes_timeseries_q1_0 %>%
   rename(count = n) %>%
   arrange(desc(count)) %>%
   mutate(freq = round(count/sum(count)*100,2))
-# 0.2% of the population refused to answer or did not know. Drop these since it is so small. All "inapplicable" responses are associated with respondents who have already voted from voted_early_in_gen_election   
-anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
-  filter(voted_early_in_gen_election != -9) %>% 
+# 0.2% of the population refused to answer or did not know. Drop these since it is so small. All "inapplicable" responses are associated with respondents who have already voted from voted_early_in_gen_election
+anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>%
+  filter(voted_early_in_gen_election != -9) %>%
   filter(!(plan_to_vote_in_gen_election %in% c(-8, -9)))
 
 
@@ -290,12 +320,12 @@ saveRDS(anes_timeseries_q1_0, file = "Data/anes_key_fields_forQ2.rds")
 
 ########Age########
 anes_timeseries_q1_0$age %>% summary()
-  #  Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# -9.00   35.00   51.00   49.13   65.00   80.00 
+  #  Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+# -9.00   35.00   51.00   49.13   65.00   80.00
 
 #filter to voters
-anes_timeseries_q1_voters <- anes_timeseries_q1_0 %>% 
-  filter(voted_early_in_gen_election == 1 | 
+anes_timeseries_q1_voters <- anes_timeseries_q1_0 %>%
+  filter(voted_early_in_gen_election == 1 |
            plan_to_vote_in_gen_election == 1)
 
 anes_timeseries_q1_voters %>% nrow()
@@ -304,78 +334,193 @@ anes_timeseries_q1_voters %>% nrow()
 100*(1 - (anes_timeseries_q1_voters %>% nrow())/(anes_timeseries_q1_0 %>% nrow()))
 #Dropped 6.7% of survey respodents who did not vote/did not plan to vote in the 2020 general election
 
+```
+
+Next, we examined the age of the voters. The age(V201507x) is by year except for all the people above 80 who are bucketed into an "80+" bin. In addition, respondents who refused to answer the age question were assigned as -9. Figure 2 shows there are more Democratic voters in all the age buckets below 50 and more Republican voters in age buckets above 50, including the "80+" bin, as well as the "refuse to answer" bucket.
+
+Since there is little information available to impute the age of the "refuse to answer" group, we excluded them from our analysis and statistical tests. For the samples in "80+" bin, we assume an age of 80 for the purpose of our analysis. We discuss this further in the "test limitations" section of this report.
+
+Table 1 shows the mean and median ages of Democratic voters vs. Republican voters and the trimmed mean calculated without the "80+" bin. In both scenarios, the mean and median of the Democratic voters are less than the Republican voters. However, is this age difference statistically and practically significant?
+
+```{r make summary table, echo = FALSE, results='hide', warning=TRUE, message=FALSE}
+mean_med_age_all <- anes_timeseries_q1_voters %>%
+  filter(age >= 0) %>%
+  select(age, party_of_registration_str_edited) %>%
+  filter(party_of_registration_str_edited %in% c("Democrat", "Republican")) %>%
+  rename(`Political Party` = party_of_registration_str_edited) %>%
+  group_by(`Political Party`) %>%
+  summarize(`Median Voter Age` = round(median(age),0),
+            `Mean Voter Age` = round(mean(age),0)) %>%
+  ungroup()
+
+mean_med_age_no80plus <-anes_timeseries_q1_voters %>%
+  filter(age >= 0 & age < 80) %>%
+  select(age, party_of_registration_str_edited) %>%
+  filter(party_of_registration_str_edited %in% c("Democrat", "Republican")) %>%
+  mutate(party_of_registration_str_edited = paste0(party_of_registration_str_edited,"_filtered")) %>%
+  rename(`Political Party` = party_of_registration_str_edited) %>%
+  group_by(`Political Party`) %>%
+  summarize(`Median Voter Age` = round(median(age),0),
+            `Mean Voter Age` = round(mean(age),0)) %>%
+  ungroup()
+
+mean_med_age_joined <- mean_med_age_all %>%
+  bind_rows(mean_med_age_no80plus)
+
+```
+
+```{r Q1 visulization of age distribution for two groups, echo=FALSE, warning=FALSE, message=FALSE, out.width="49%", out.height="30%", fig.cap="Age of Survey Respondents by Political Party and Table 1: Age by Party for the Unfiltered Dataset and for with the 80+ Age Bin Removed", fig.show='hold',fig.align='center'}
+
+plot1 <- kable(
+  mean_med_age_joined,
+  digits = 2,
+  # caption = 'Age by Party for: (1) Unfiltered Dataset and (2) 80+ Age Bin Removed',
+  caption = NULL,
+  booktabs = TRUE
+) %>%
+  save_kable("plot1.png")
 
 # Are survey respondents who voted/will vote who answered 80+ or -9 (refused) more likely to be republican or democrat?
-h1 <- anes_timeseries_q1_voters %>% 
-  filter(party_of_registration_str_edited == "Democrat") %>% 
-  select(age, party_of_registration_str_edited)
-  
-h2 <- anes_timeseries_q1_voters %>% 
-  filter(party_of_registration_str_edited == "Republican") %>% 
+par(mar=c(0,0,0,0))
+par(oma=c(0,0,0,0))
+h1 <- anes_timeseries_q1_voters %>%
+  filter(party_of_registration_str_edited == "Democrat") %>%
   select(age, party_of_registration_str_edited)
 
+h2 <- anes_timeseries_q1_voters %>%
+  filter(party_of_registration_str_edited == "Republican") %>%
+  select(age, party_of_registration_str_edited)
+
+png(file="plot2.png", width = 2500, height = 2500, pointsize = 100)
 hist(h1$age, col=rgb(0,0,1,0.5),
-     main = "Age of Survey Respondents by Political Party", 
+     main = "",
      xlab = "Age (years)", ylab = "Sampled Percentile", freq = FALSE, right = TRUE)
-hist(h2$age, freq = FALSE, col=rgb(1,0,0,0.5), 
+hist(h2$age, freq = FALSE, col=rgb(1,0,0,0.5),
      add=T, right = TRUE)
 legend("topleft", c("Democrat", "Republican"), lwd=10, col=c(rgb(0,0,1,0.5), rgb(1,0,0,0.5)))
 box()
+dev.off()
 
 #The resulting histogram illustrates that Republican data has higher rates of 80+ years of age and do not respond.
 
 
- 
+# knitr::include_graphics(c("path/to/img1","path/to/img1"))
+knitr::include_graphics(c("plot2.png","plot1.png"))
 
 ```
 
 
-## Importance and Context
-<!-- You can (and should delete each of these comments lines in your final report) --> 
-<!-- Explain why the reader should care about your research question. -->
+```{r Q1 exploratory analysis1, echo=FALSE, results='hide', warning=TRUE, message=FALSE}
 
-1. Are Democratic voters older or younger than Republican voters in 2020?
+# Drop data points without age as final sample to run EDA and tests
+DemVgroup=h1[which(h1$age>0),]
+RepVgroup=h2[which(h2$age>0),]
+
+# Check summary stats of the two sample groups
+summary(DemVgroup)
+summary(RepVgroup)
 
 
 
-## Description of Data
-<!-- Explain how your research question is operationalized, including whether the variables you create are appropriate to study the concepts in question. --> 
-<!-- What are some basic features of the data distribution? --> 
-<!-- What changes do you make to the data and why? --> 
-
-```{r q1 exploratory analysis, echo=FALSE, warning=TRUE, message=FALSE}
-
-#JUN UNLESS YOU WANT ANY OF THE BELOW INFO, FEEL FREE TO DELETE THIS SECTION!!!!
-
-# Exploratory analysis of weighted dems vs republicans. Still needs age and stats tests
-#Option 1
-Hmisc::wtd.table(anes_timeseries_raw$party_of_registration_str, 
-          weights = anes_timeseries_raw$weight_all_samples,
-          normwt = FALSE)
-#Option 2
-party_counts <- tapply(anes_timeseries_raw$weight_all_samples, 
-       anes_timeseries_raw$party_of_registration_str, 
-       sum) %>% 
-  as.data.frame()
-
-party_counts <- cbind(newColName = rownames(party_counts), party_counts)
-rownames(party_counts) <- 1:nrow(party_counts)
-names(party_counts) <- c("party", "sample_count_weighted")
-party_counts_2 <- party_counts %>% 
-  mutate(sample_freq_weighted = sample_count_weighted/sum(sample_count_weighted) * 100) %>% 
-  arrange(desc(sample_freq_weighted)) 
-
-party_counts_2
+#The mean/median age of Dem voters here is younger than Rep voters
 ```
 
 
-## Most appropriate test 
-<!-- Explain which test is the most appropriate to answer your question and why it is the most appropriate --> 
-<!-- List every assumption that your test requires and evaluate it. -->
+```{r Q1 exploratory analysis2, echo=FALSE, results='hide', warning=TRUE, message=FALSE}
 
-Rank summed approach (to account for the 80 + years variable)
+#Calculate trimmed mean(and other stats) without the 80+ bin
+DemVtrimmed <- DemVgroup %>%
+  filter(age>0&age!=80) %>%
+  select(age,party_of_registration_str_edited)
+RepVtrimmed <- RepVgroup %>%
+  filter(age>0&age!=80) %>%
+  select(age,party_of_registration_str_edited)
+
+summary(DemVtrimmed)
+summary(RepVtrimmed)
+
+#the mean/median age of Dem voters is younger than Rep voters as well
+
+```
+## Most appropriate test
+
+To determine whether there is a statistical difference in the ages of Democratic voters and Republican voters, we compared the mean of the age of two groups using the Unpaired Welch-t Two Sample Test. The reasons we selected this test are as follows:
+
+(1) The two sample groups consists sample data points unrelated to each other.
+
+(2) The data is interval except the 80+ bin. For the 80+ bin, as in the mean/median calculation, we just assumed it is 80 for testing. It is a simplified treatment of the data. However, the possible impacts are discussed in the test limitation section.
+
+(3) The data extracted from the population is I.I.D. Given the nature of the methodology of collecting these survey responses, it is possible that respondents tell friends and other family members about the survey (as there is a paid incentive to participate), resulting in clusters of similar responses. However, it is difficult to ascertain or quantify this phenomenon, and our expectation is that this clustering effect is minimal.
+
+(4) The sample size is very large. The sample sizes of Democratic voters and Republic voters are 2701 and 2260 respectively. Although the samples are not perfectly normally distributed, the large sample size should outweigh the skewness, as the sampling distribution of the sample means is expected to be approximately normal under the Central Limit Theorem.
+
+(5) The sample variance actually is unknown due to the 80+ bin. Under such circumstances, the Welch-t test is generally regarded as a more appropriate t test.
+
+Therefore, we decided to use the Welch-t Two Sample Test. The Null Hypothesis for the test is that the means of the age of two voter groups are equal. We used a two-tailed test in this study because we didn't want to assume one group is older or younger than the other group beforehand.
+
+In addition to the statistical difference, we also would like to examine whether the difference is practically significant enough for us to act on. Therefore, we also calculated the effect size to reach a final conclusion.
 
 
-## Test, results and interpretation
-<!-- What are the results of your test? --> 
-<!-- What do the results of this test mean? What is the practical significance? --> 
+
+```{r Q1 Hypotheis assumption, echo=FALSE, results='hide', fig.show='hide',warning=TRUE, message=FALSE}
+# Next step --- Observe the distributions of the samples
+
+# hist graph of the two sample groups
+hist(DemVgroup$age)
+hist(RepVgroup$age)
+# The hist graph of both sample groups dont look perfect normal
+
+# qq plot of the two sample groups
+qqnorm(DemVgroup$age, pch = 1, frame = FALSE)
+qqline(DemVgroup$age, col = "steelblue", lwd = 2)
+
+qqnorm(RepVgroup$age, pch = 1, frame = FALSE)
+qqline(RepVgroup$age, col = "steelblue", lwd = 2)
+# The QQ plot of both sample groups don't look perfect normal
+
+skewness(DemVgroup$age)
+skewness(RepVgroup$age)
+
+shapiro_test(DemVgroup$age)
+shapiro_test(RepVgroup$age)
+
+# Although the distributions do not look perfect normal. Since the population and sample sizes are very large, we will still proceed to select welch t test
+
+# below is redoing the sample filtering to show on the report
+```
+
+```{r Q1 Hypotheis Testing, results='hide', fig.show='hide',warning=TRUE, message=FALSE}
+
+
+
+DemV <- anes_timeseries_q1_voters %>%
+  filter(party_of_registration_str_edited == "Democrat" & age>=18) %>%
+  select(age, party_of_registration_str_edited)
+
+RepV <- anes_timeseries_q1_voters %>%
+  filter(party_of_registration_str_edited == "Republican"& age>=18) %>%
+  select(age, party_of_registration_str_edited)
+
+t.test(DemV$age,RepV$age)
+
+```
+
+```{r Q1 effect size, echo=FALSE, results='hide', fig.show='hide',warning=TRUE, message=FALSE}
+
+#t-test statistically significant then calculate effect size using cohen's D
+
+sampleAll<-rbind(DemV,RepV)
+
+effectSize<-sampleAll %>% cohens_d(age ~ party_of_registration_str_edited, var.equal = FALSE)
+
+```
+## Test results and interpretation
+
+The t-test results indicated that the Null Hypothesis was rejected at 95% confidence level. The reported p-value was `r round(t.test(h1$age,h2$age)$p.value,2)` , nearly zero. So statistically, we can conclude the mean age of two groups are different. With a t-value of `r round(t.test(h1$age,h2$age)$statistic,2)` , we measured that the mean of Democratic voters is smaller than Republican voters. This also seems to be consistent with our earlier observations that Democratic voters are younger.
+
+However, using Cohen's d, the effect size of the test is `r round(effectSize[4],2)`. This means the practical significance of the age difference is fairly small, almost negligible. To summarize, we can say that Democratic voters as a group are younger than Republican voters, but the age difference is of little to no practical significance. Tying back to our motivation for answering this question as stated in the introduction, if certain political policies are related to the ages of the constituents of the party in power, our results suggest we probably would not see any policy changes made as a result of age differences alone.
+
+
+## Test limitation
+
+In our analysis, we assume the age "80+" bin as 80 years old since there is no way for us to know the exact distribution of data in this bin. However, this bin constitutes 5.04% of the Democratic voters' group and 5.81% of Republic voters' group. Different age distributions within this bin could theoretically alter our conclusions from this study, but we do not have a strong reason to suspect a substantial difference in age distributions between Democratic and Republican voters in this 80+ bin. 
