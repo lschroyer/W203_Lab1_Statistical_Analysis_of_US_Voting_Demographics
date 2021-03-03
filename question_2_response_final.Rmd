@@ -1,0 +1,507 @@
+---
+title: 'Lab 1: Question 2'
+author: "Jun Qian, Lucas Schroyer, Ryan Mitchell, Oliver Chang"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 2
+    number_sections: yes
+  html_document:
+    toc: yes
+    toc_depth: '2'
+    df_print: paged
+---
+
+\clearpage
+
+```{r load packages, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+rm(list = ls())
+
+library(knitr)
+library(dplyr)
+library(ggplot2) 
+library(purrr)
+library(haven)
+library(tidyverse)
+# install.packages("DescTools")
+library(DescTools)
+#install.packages("rstatix")
+library(rstatix)
+library(moments)
+library(magrittr)
+#install.packages("kableExtra")
+library(kableExtra)
+require(plotrix)
+#install.packages("magick")
+#install.packages("webshot")
+library("magick")
+library("webshot")
+webshot::install_phantomjs()
+
+```
+
+
+```{r load data1, echo=FALSE, results='hide', warning=TRUE, message=FALSE}
+## read in initial data frame
+# https://electionstudies.org/data-center/2020-time-series-study/
+# codebook
+# https://electionstudies.org/wp-content/uploads/2021/02/anes_timeseries_2020_userguidecodebook_20210211.pdf
+anes_timeseries_2020_stata_20210211 <- read_dta("Data/anes_timeseries_2020_stata_20210211.dta")
+labelled_df <- anes_timeseries_2020_stata_20210211
+names_list <- c()
+id_list <- c()
+for (var_tmp in names(labelled_df)) {
+  name_tmp <- attributes(zap_labels(labelled_df[[var_tmp]]))$label
+  id_list <- c(id_list, var_tmp)
+  names_list <- c(names_list, name_tmp)
+}
+names_list %>% head()
+id_key <- data.frame("id" = id_list, "desc" = names_list)
+# View(id_key)
+rm(names_list, id_list)
+```
+
+``` {r select variables1, echo=FALSE, results='hide', warning=TRUE, message=FALSE}
+# The study interviewed respondents in a pre-election survey that was
+# conducted between August 18, 2020 and November 3, 2020. Election day was
+# November 3, 2020. The study re-interviewed as many as possible of the same
+# respondents in a post-election survey that was conducted between November 8,
+# 2020 and January 4, 2021.
+# For analysis of the complete pre-election dataset,
+# including all cases and representative of the 2020 electorate, use the full sample
+# dataset, consisting of the combination of sample groups for the web only, mixed web, and mixed video modes, and the 2016-2020 panel cases combined. 
+anes_timeseries_raw <- anes_timeseries_2020_stata_20210211 %>% 
+  select( weight_all_samples = V200010a,
+         interview_type = V200002,
+         # ----key filters----#
+         registered_to_vote_loc = V201008,
+         
+         # ----question 1 fields ----#
+         # Democrat vs Republican Age in 2020
+         party_of_registration = V201018,
+         democrat_party_rating = V201156,
+         republican_party_rating = V201157,
+         age = V201507x,
+         voted_early_in_gen_election = V201022,
+         plan_to_vote_in_gen_election = V201032,
+         
+         # ----question 2 fields ----#
+         # Democratic voters excited about Joe Biden or Kamala Harris
+         biden_rating = V201151,
+         harris_rating = V201153,
+         biden_likability = V201106,
+         biden_dislikability = V201108,
+         biden_leadership_skills = V201208,
+         biden_caring_for_people = V201209,
+         biden_knowledgeable = V201210,
+         biden_honest = V201211,
+         
+         # ----question 3 fields ----#
+         # Covid household approval of governor's handleing of the pandemic
+         voted_for_governor = V201066,
+         voted_for_governor2 = V201067,
+         voted_for_governor3 = V201070,
+         voted_for_governor4 = V201073,
+         gov_approval_covid_response = V201145,
+         gov_approval_covid_response2 = V201146,
+         covid_household_tested = V201624,
+         covid_household_suspected = V201625
+         ) %>% 
+  # remove labels from haven package
+  mutate_all(zap_labels) %>% 
+  mutate(
+    registered_to_vote_status = case_when(
+      registered_to_vote_loc %in% c(1,2) ~ T,
+      registered_to_vote_loc == 3 ~ F,
+      T ~ NA),
+    
+    party_of_registration_str = case_when(
+      party_of_registration == 1 ~ "Democrat",
+      party_of_registration == 2 ~ "Republican",
+      party_of_registration == 4 ~ "None_or_independent",
+      party_of_registration == 5 ~ "other",
+      T ~ "NA"),
+    
+    democrat_party_rating_2 = case_when(
+      democrat_party_rating <= 100 & democrat_party_rating >= 0 ~ democrat_party_rating,
+      T ~ -1,
+    ),
+    republican_party_rating_2 = case_when(
+      republican_party_rating <= 100 & republican_party_rating >= 0 ~ republican_party_rating,
+      T ~ -1,
+    )
+  ) %>% 
+  mutate(id = paste0("ID_",row_number())) %>% #create an ID
+  select(-registered_to_vote_loc, -party_of_registration, -democrat_party_rating, -republican_party_rating) %>% 
+  select(id, everything())
+#Drop the attributes associated with the HAVEN package. Extraneous information
+anes_timeseries_raw_tmp <- lapply(anes_timeseries_raw, FUN=function(x){data.frame(as.matrix(x),stringsAsFactors = F)}) %>% as.data.frame()
+names(anes_timeseries_raw_tmp) <- names(anes_timeseries_raw)
+anes_timeseries_raw <- anes_timeseries_raw_tmp
+rm(anes_timeseries_raw_tmp)
+anes_timeseries_raw %>% glimpse()
+#save raw data for scripts 02 and 03
+saveRDS(anes_timeseries_raw, file = "Data/anes_key_fields_forQ3.rds")
+```
+
+```{r select variables 2, echo=FALSE,results='hide', warning=TRUE, message=FALSE}
+#Q1 and Q2 both use party & voter information (biden & harris are for Q2)
+anes_timeseries_q1_0 <-  anes_timeseries_raw %>% 
+  select(id,
+         #Q1 variables
+         registered_to_vote_status,
+         party_of_registration_str,
+         democrat_party_rating_2,
+         republican_party_rating_2,
+         age,
+         voted_early_in_gen_election,
+         plan_to_vote_in_gen_election, 
+         #Q2 variables (carry through to minimize duplicate data cleaning steps)
+         biden_rating,
+         harris_rating
+  )
+#check the structure
+anes_timeseries_q1_0 %>% 
+  str() 
+#all variables are the expected structure
+```
+
+``` {r Define voter 1, echo=FALSE, results='hide', warning=TRUE, message=FALSE}
+#########Registration Status########
+anes_timeseries_q1_0$registered_to_vote_status %>% summary()
+#less than .15% of respondents (i.e. 11) did not respond in a T/F manner. 
+#Drop these sites.
+anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
+  filter(!is.na(registered_to_vote_status))
+anes_timeseries_q1_0 %>% nrow()
+# 8269
+``` 
+``` {r Define party affliation, echo=FALSE, results='hide', warning=TRUE, message=FALSE}
+########Party Affiliation########
+anes_timeseries_q1_0 %>%
+  count(party_of_registration_str) %>%
+  rename(count = n) %>%
+  arrange(desc(count)) %>%
+  mutate(freq = round(count/sum(count)*100,2))
+# Assumption, if respondent is NA for registered party but showed strong favoritability towards one party(delta greater than 50), then classify them as that party potential voter 
+anes_timeseries_q1_0 %>% 
+  filter(party_of_registration_str == "NA" &
+        (democrat_party_rating_2 == -1 | republican_party_rating_2 == -1)) %>% 
+  glimpse()
+# 81 instances where the respondent not registered with either party entered a non numeric rating for one or both of the party ratings (out of 8269 total). Drop from analysis.
+anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>%
+    filter(!(party_of_registration_str == "NA" &
+        (democrat_party_rating_2 == -1 | republican_party_rating_2 == -1))) 
+anes_timeseries_q1_0 %>% nrow()  
+# 8188
+table(anes_timeseries_q1_0$party_of_registration_str)
+# 3929 NAs to reclassify 
+``` 
+
+
+``` {r Define Dem/Rep voter, echo=FALSE, results='hide', warning=TRUE, message=FALSE, fig.cap="If a survey response's abs(Democratic Rating - Republican Rating) > 50 and they are listed as NA for their party affiliation, remap that respondent to either a Democrat/Republican from NA.", fig.pos='!b', fig.height = 3, fig.width = 4, fig.show='hide'}
+#}, fig.align = 'right'}fig.pos='!b'
+# Infer partisan leaning for party registration info inapplicable voters
+anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
+  mutate(dem_party_fav = democrat_party_rating_2 - republican_party_rating_2,
+         rep_party_fav = republican_party_rating_2 - democrat_party_rating_2)
+# layout(matrix(c(1, 0, 0, 1, 0, 0, 1, 2, 3), 3, 3, byrow = TRUE))
+# par(mar=c(0,0,2,0))
+# par(oma=c(2,2,2,2))
+H <- hist(anes_timeseries_q1_0$dem_party_fav, breaks = 20, 
+          ylim = c(0,1200),
+          main = "Democrat - Republican Party Ratings", xlab = NULL)#, labels = TRUE)
+# View the paired delta in ratings
+text(x = H$mids, y = H$counts, labels = H$counts, cex = 0.7, pos = 3, srt=90)
+#Use a cutoff of +/- 50 points to remap NA party registered respondents
+anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
+  mutate(
+    party_of_registration_str2 = case_when(
+      dem_party_fav >= 50 ~ "Democrat", #Strong preference for Democrats
+      rep_party_fav >= 50 ~ "Republican", #Strong preference for Republicans
+      T ~ "NA"),
+    party_of_registration_str3 = if_else(
+      party_of_registration_str == "NA",  
+      party_of_registration_str2, 
+      party_of_registration_str)  
+    )
+anes_timeseries_q1_0 %>% 
+  filter(party_of_registration_str != party_of_registration_str3) %>% 
+  nrow()
+#added back 2105 rows were the party was previously classified as NA
+anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
+  select(-party_of_registration_str2, -dem_party_fav, 
+         -rep_party_fav, -democrat_party_rating_2, -republican_party_rating_2) %>% 
+  rename(party_of_registration_str_raw = party_of_registration_str,
+         party_of_registration_str_edited = party_of_registration_str3)
+anes_timeseries_q1_0 %>% nrow()  
+#8188
+########voted_early_in_gen_election or plan_to_vote_in_gen_election########
+# ALREADY VOTED IN GENERAL ELECTION
+# 1. Have voted
+# 2. Have not voted
+# -9. Refused
+anes_timeseries_q1_0 %>%
+  count(voted_early_in_gen_election) %>%
+  rename(count = n) %>%
+  arrange(desc(count)) %>%
+  mutate(freq = round(count/sum(count)*100,2))
+# 0.06% of the population refused to answer. Drop these since it is so small
+# Do you intend to vote in the November election for President?
+# Values
+# 1. Yes
+# 2. No
+# -1. Inapplicable
+# -8. Don’t know
+# -9. Refused
+anes_timeseries_q1_0 %>%
+  # filter(voted_early_in_gen_election == 2) %>% #QC inapplicable responses
+  count(plan_to_vote_in_gen_election) %>%
+  rename(count = n) %>%
+  arrange(desc(count)) %>%
+  mutate(freq = round(count/sum(count)*100,2))
+# 0.2% of the population refused to answer or did not know. Drop these since it is so small. All "inapplicable" responses are associated with respondents who have already voted from voted_early_in_gen_election   
+anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
+  filter(voted_early_in_gen_election != -9) %>% 
+  filter(!(plan_to_vote_in_gen_election %in% c(-8, -9)))
+100*(1 - (anes_timeseries_q1_0 %>% nrow())/(anes_timeseries_raw %>% nrow()))
+#In all of the data cleaning steps for Q1 and Q2, dropped 1.4% of the survey rows
+########save transformed data for scripts 02########
+saveRDS(anes_timeseries_q1_0, file = "Data/anes_key_fields_forQ2.rds")
+
+```
+
+
+```{r load and clean data, echo=FALSE, warning=TRUE, message=FALSE, results='hide', fig.show='hide'}
+anes_timeseries_raw2 <- readRDS(file = "Data/anes_key_fields_forQ2.rds") %>% 
+  select(id,
+         biden_rating,# = V201151, Main Variable
+         harris_rating,# = V201153, Main Variable
+         voted_early_in_gen_election, #cleaned in script 01
+         plan_to_vote_in_gen_election, #cleaned in script 01
+         party_of_registration_str_edited) #cleaned in script 01
+anes_timeseries_raw2 %>% glimpse()
+anes_timeseries_raw2 %>% nrow()
+# 8168 rows
+anes_timeseries_raw2 %>% glimpse
+#filter to democrat voters (note these responses were cleaned in script 01)
+anes_timeseries_q2 <- anes_timeseries_raw2 %>% 
+  filter((voted_early_in_gen_election == 1 | 
+           plan_to_vote_in_gen_election == 1) & 
+           party_of_registration_str_edited == "Democrat")
+anes_timeseries_q2 %>% nrow()
+# 2775 rows
+########Enthusiasm########
+# How would you rate (candidate):
+# 0-100. Actual value
+# 998. Don’t know (don’t know where to rate)
+# 999. Don’t recognize (don’t know who this is)
+# -4. Technical error
+# -9. Refused
+anes_timeseries_q2$biden_rating %>% summary()
+  # -9.00   70.00   85.00   75.47   90.00  100.00 
+anes_timeseries_q2$harris_rating %>% summary()
+  # -9.00   70.00   85.00   76.21   90.00  999.00 
+# catergorize response type: 1 = correct rating, actual value otherwise
+anes_timeseries_q2 <- anes_timeseries_q2 %>% 
+  mutate(biden_enthus_response_type = if_else(biden_rating <= 100 & biden_rating >=0, 
+                                   1, biden_rating),
+         harris_enthus_response_type = if_else(harris_rating <= 100 & harris_rating >=0, 
+                                   1, harris_rating)
+         )
+anes_timeseries_q2 %>%
+  count(biden_enthus_response_type) %>%
+  rename(count = n) %>%
+  arrange(desc(count)) %>%
+  mutate(freq = round(count/sum(count)*100,2))
+# 1.69% of respondents refused to answer for Biden enthusiasm. The rest provided a numerical value.
+anes_timeseries_q2 %>%
+  count(harris_enthus_response_type) %>%
+  rename(count = n) %>%
+  arrange(desc(count)) %>%
+  mutate(freq = round(count/sum(count)*100,2))
+# 1.95% of respondents refused to answer Harris. 0.11% didn't recognize Harris as a candidate for VP and 0.07% didn't know where to rate her. The rest provided a numerical value.
+anes_timeseries_q2 %>%
+  count(biden_enthus_response_type, harris_enthus_response_type) %>%
+  rename(count = n) %>%
+  arrange(desc(count)) %>%
+  mutate(freq = round(count/sum(count)*100,2))
+# 1.33% provide a response for Biden but not for Harris while 0.9% provided a response for Harris but not Biden. 0.8% didn't provide a response for either. 96.97% provided numerical responses.
+#Biden avg response for missing Harris Data
+anes_timeseries_q2 %>% 
+  filter(harris_enthus_response_type != 1 & biden_enthus_response_type == 1) %>% 
+  select(biden_rating) %>% 
+  summary() 
+#Harris avg response for missing Biden Data
+anes_timeseries_q2 %>% 
+  filter(biden_enthus_response_type != 1 & harris_enthus_response_type == 1) %>% 
+  select(harris_rating) %>% 
+  summary()
+enthus_box_plot_data <-  list(
+  "biden_rating" = (anes_timeseries_q2 %>% 
+          filter(biden_enthus_response_type == 1))$biden_rating,
+  "biden_rating_missing_harris_ratings" = (anes_timeseries_q2 %>% 
+          filter(harris_enthus_response_type != 1 & biden_enthus_response_type == 1))$biden_rating,
+  "harris_rating" = (anes_timeseries_q2 %>% 
+          filter(harris_enthus_response_type == 1))$harris_rating,  
+  "harris_rating_missig_biden_ratings" = (anes_timeseries_q2 %>% 
+          filter(biden_enthus_response_type != 1 & harris_enthus_response_type == 1))$harris_rating)
+#size of each vector
+enthus_box_plot_data$biden_rating %>% length() #2728
+enthus_box_plot_data$biden_rating_missing_harris_ratings %>% length() #37
+enthus_box_plot_data$harris_rating %>% length() #2716
+enthus_box_plot_data$harris_rating_missig_biden_ratings %>% length() #25
+#create boxplot showing each vector  
+par(mar = c(6.1, 4.1, 4.1, 4.1), # change the margins
+    lwd = 1.2#, # increase the line thickness
+    # cex.axis = 1.2 # increase default axis label size
+    )
+boxplot(enthus_box_plot_data$biden_rating,
+        enthus_box_plot_data$biden_rating_missing_harris_ratings,
+        enthus_box_plot_data$harris_rating,
+        enthus_box_plot_data$harris_rating_missig_biden_ratings,
+main = "Boxplot for Rating Responses by Candidate\nand Data Completeness Type",
+at = c(1,2,4,5),las = 2, tck = -0.01,
+col = c("orange","orange", "red", "red"),
+border = "#333333",
+xaxt = "n", yaxt = "n"
+)
+axis(side = 1, 
+     labels = FALSE,
+     padj=1)
+axis(side = 2,
+     ## Rotate labels perpendicular to y-axis.
+     las = 2,
+     ## Adjust y-axis label positions.
+     mgp = c(3, 0.75, 0))
+text(x = 1:5,
+     ## Move labels to just below bottom of chart.
+     offset = -1,
+     y = par("usr")[3] - 1.0,
+     ## Use names from the data list.
+     labels = c("\n\nBiden", "\n\n\n\nBiden\n(When Harris\nData Missing)","","\n\nHarris", "\n\n\n\nHarris\n(When Biden\nData Missing)"),
+     ## Change the clipping region.
+     xpd = NA,
+     ## Rotate the labels by 35 degrees.
+     srt = 35,
+     ## Adjust the labels to almost 100% right-justified.
+     adj = 1.0,
+     ## Increase label size.
+     cex = 0.75)
+#For the Biden and Biden filterd to when Harris ratings missing options, there seems to be a good amount of overlap in the expected mean. For the Harris and Harris (missing Biden Data), there does not seem to be much overlap in the data. When viewing the results of our final statistical test for this variable of "enthusiasm", we will discuss the potential impact of removing this data. For now though, given the small number of responses that are missing data, we will ignore this impact.  
+```
+
+
+## Importance and Context
+<!-- You can (and should delete each of these comments lines in your final report) --> 
+<!-- Explain why the reader should care about your research question. -->
+
+Research question: "Are Democratic voters more enthusiastic about Joe Biden or Kamala Harris?"
+
+Voting is the heart and basis of the American democracy. Every single vote is counted equally and it represents the will and voice of the people. Throughout American history, a few number of votes have determined the outcome of key elections. For example in the 2020 presidential election, the elected candidates secured only slight more votes in the swinging states than their opponents by sometime less than 1%. This tiny lead eventually determined who was going to run the Office. Under such circumstances, high levels of enthusiasm of the voters towards the presidential candidates is accompanied by high rates of voter turnout, which can affect the results of the election. As a matter of fact, understanding which candidate is more attractive/likable to the voters is crucial for the parties to adjust their election strategies and campaigning decisions.      
+
+
+
+<!-- - Interval Data  -->
+<!-- How would you rate: -->
+<!-- Kamala Harris -->
+<!-- 0-100. Actual value -->
+<!-- 998. Don’t know (don’t know where to rate) -->
+<!-- 999. Don’t recognize (don’t know who this is) -->
+<!-- -4. Technical error -->
+<!-- -9. Refused -->
+
+## Description of Data
+<!-- Explain how your research question is operationalized, including whether the variables you create are appropriate to study the concepts in question. --> 
+<!-- What are some basic features of the data distribution? --> 
+<!-- What changes do you make to the data and why? --> 
+
+
+To answer our research question, we downloaded the pre-election data from the 2020 American National Election Studies (ANES) site. We then extracted the following variables related to this question for further processing and exploration:
+
+- biden_rating(V201151)
+- harris_rating(V201153)
+- party_of_registration(V201018)
+- democrat_party_rating(V201156)
+- republican_party_rating(V201157)
+- voted_early_in_gen_election(V201022)
+- plan_to_vote_in_gen_election(V201032)
+- registered_to_vote_loc(V201008)
+
+The two variables, biden_rating (V201151) and harris_rating (V201153), were the main variables we used to infer the voter's enthusiastic rating in this study. These two variables were metric and ranged in integer value from 0 to 100. We applied filters excluding missing or inappropriate responses. For the purposes of this study, we defined “voters” as survey respondents who: (1) registered to vote (V201008) and either (2) voted early in general election (V201022) or (3) planned to vote (V201032). We also filtered the data down to Democratic voters only, using the following variables: (1) party_of_registration (V201018), (2) democrat_party_rating (V201156), and (3) republican_party_rating (V201157). In this study, we defined Democratic voters as voters who were registered as Democrats or either intended to vote or voted early for Democratic candidates. In addition, we noticed 48% of the voters didn't have applicable registered party information. However, we did have their ratings for both parties. Hence, we inferred their partisan preferences using democrat_party_rating and republican_party_rating. If the voters showed a stronger preference towards one party (rating one party 50 higher than the other party), then we assigned the voters to their preferred party. We believed including the partisan rating data into the testing samples allowed us to better capture the actual supporter population for the two parties. The more samples we had, the more statistical power we had to test our hypothesis. The total voter counts were 2691 with all the filters applied. Fig. 1 illustrates the normalized histogram of the Democratic voters' enthusiastic ratings of Biden vs. Harris. The distribution of the ratings were very similar to each other. The ratings both peak between 80 and 90, with skewed distributions to the left, due to the constraint of the rating (capped at 100).
+
+
+
+```{r Data Description, echo=FALSE, warning=TRUE, message=FALSE}
+h1 <- anes_timeseries_q2 %>% 
+  select(biden_rating) %>% 
+  filter(biden_rating >= 0 & biden_rating <= 100)
+  
+h2 <- anes_timeseries_q2 %>% 
+  select(harris_rating) %>% 
+  filter(harris_rating >= 0 & harris_rating <= 100)
+hist(h2$harris_rating, col=rgb(0,0,1,0.5),
+     main = "Fig. 1. Biden vs. Harris Voter Enthusiastic Rating", 
+     xlab = "Rating/Score", ylab = "Percentage", freq = FALSE, right = TRUE)
+hist(h1$biden_rating, freq = FALSE, col=rgb(1,0,0,0.5), 
+     add=T, right = TRUE)
+legend("topleft", c("Harris", "Biden"), lwd=10, col=c(rgb(0,0,1,0.5), rgb(1,0,0,0.5)))
+box()
+```
+
+## Most appropriate test 
+<!-- Explain which test is the most appropriate to answer your question and why it is the most appropriate --> 
+<!-- List every assumption that your test requires and evaluate it. -->
+
+To compare the relative voter's enthusiastic ratings for Biden and Harris, We thought the Sign Test was the best test to conduct for the following reasons: 
+
+(1) The data was paired. 
+
+(2) We wanted to compare the relative enthusiastic level within each voter, not with other voters. That is, we only wanted to know if a voter liked Biden or Harris more, not if a voter liked Biden or Harris more than another voter. For example, if one voter rated the two candidates at 80-90, and another voter rated at 10-20, the ratings from the former voters would account for more weights in a parametric test and could lead to wrong test results and conclusions. 
+
+Hence, we needed to convert the parametric data into non-parametric. We took the signs using the two main variables, biden_rating and harris rating. If one candidate had a higher rating, then a + was assigned to the candidate. Once the signs were marked, we calculated the sum of total + for Biden and Harris (Table 1). There were 779 + for Biden, 765 + for Harris, and 1147 draws. In the Sign Test (Binomial Test), the draws were excluded because they didn't tell if one favored either candidate. Hence, the total number to trails were 779 + 765 = 1544.
+
+There were some assumptions for the test to be valid.
+
+(1) The data extracted from the population had to be I.I.D.. Clustering effect could skew the data during sampling process. In addition, the weights that accounted for the population size of each sampling location were not applied in this study for simplicity reasons.  
+
+(2) The data had to be non-metric. We had converted the parametric data to non-parametric, binary in this case, in the previous step. This method also didn't require a strict minimal sample size. However, we had more than 1000 samples, which strengthened the credibility of the test.
+
+The goal of this test was to exam if one candidate were statistically more favored by the voters than the other. The Null Hypothesis for the test was p = 0.5, which meant the two candidates were equally favored by the voters. We used a two-tailed test in this study, since we didn't know which candidate had more + signs at the beginning.    
+
+```{r Table, echo=FALSE, warning=TRUE, message=FALSE}
+Biden_signs <- c(779)
+Harris_signs <- c(765)
+Total_Trials <- c(1544)
+# Join the variables to create a data frame
+df <- data.frame(Biden_signs,Harris_signs,Total_Trials)
+kable(
+  df,
+  digits = 2,
+  caption = "Counts of Signs of Voters' Enthusiastic Ratings", 
+  booktabs = TRUE)
+```
+
+```{r Most appropriate test, echo=TRUE, warning=TRUE, message=FALSE, results='hide'}
+biden_harris <- anes_timeseries_q2 %>% select(biden_rating, harris_rating) %>%  
+      filter(harris_rating >= 0 & harris_rating <= 100 
+             & biden_rating >= 0 & biden_rating <= 100) 
+biden <- biden_harris %>% select(biden_rating)
+harris <- biden_harris %>% select(harris_rating)
+biden_higher <- ifelse((biden - harris) > 0, 1, 0) 
+total <- ifelse((biden - harris) != 0, 1, 0) 
+binom.test(sum(biden_higher), sum(total), p = 0.5, 
+         alternative = c("two.sided"), 
+         conf.level = 0.95) 
+
+harris_higher = sum(total)- sum(biden_higher)
+r = (sum(biden_higher)-harris_higher)/sum(total)
+```
+
+## Test, results and interpretation
+<!-- What are the results of your test? --> 
+<!-- What do the results of this test mean? What is the practical significance? --> 
+
+The test results indicated that the Null Hypothesis was not rejected. The reported p-value was `r round(binom.test(sum(biden_higher), sum(total), p = 0.5, alternative = c("two.sided"), conf.level = 0.95)$p.value,2)` for a two-tailed Sign Test. This meant, statistically, the Democratic voters weren't more enthusiastic for either Biden or Harris in the 2020 presidential election. The results suggested that there was no single Democratic candidate that attracted statistically more votes than the other. The results could also suggest that the Democratic voters were equally satisfied (both had high ratings in average) with the two candidates. In addition, the effect size (r) using proportion approach was `r round(r,2)`. The effect size was really small that the difference didn't have practical significance either. Therefore, no further major adjustment for the campaign strategy regarding the two candidate was required. Practically speaking, if the results came back to be significant, then the Democratic Party might consider strategies to enhance the enthusiastic rating for the candidate with lower ratings or consider other candidates.     
+
+ 
