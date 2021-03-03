@@ -3,20 +3,274 @@ title: 'Lab 1: Question 2'
 author: "Jun Qian, Lucas Schroyer, Ryan Mitchell, Oliver Chang"
 output:
   pdf_document:
-    toc: true
+    toc: yes
     toc_depth: 2
-    number_sections: true
+    number_sections: yes
+  html_document:
+    toc: yes
+    toc_depth: '2'
+    df_print: paged
 ---
 
 \clearpage
 
 ```{r load packages, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
 rm(list = ls())
+
+library(knitr)
 library(dplyr)
 library(ggplot2) 
-library(tidyverse) # if you want more, but still core, toolkit
-library(knitr)
+library(purrr)
+library(haven)
+library(tidyverse)
+# install.packages("DescTools")
+library(DescTools)
+#install.packages("rstatix")
+library(rstatix)
+library(moments)
+library(magrittr)
+#install.packages("kableExtra")
+library(kableExtra)
+require(plotrix)
+#install.packages("magick")
+#install.packages("webshot")
+library("magick")
+library("webshot")
+webshot::install_phantomjs()
+
 ```
+
+
+```{r load data1, echo=FALSE, results='hide', warning=TRUE, message=FALSE}
+## read in initial data frame
+# https://electionstudies.org/data-center/2020-time-series-study/
+# codebook
+# https://electionstudies.org/wp-content/uploads/2021/02/anes_timeseries_2020_userguidecodebook_20210211.pdf
+anes_timeseries_2020_stata_20210211 <- read_dta("Data/anes_timeseries_2020_stata_20210211.dta")
+labelled_df <- anes_timeseries_2020_stata_20210211
+names_list <- c()
+id_list <- c()
+for (var_tmp in names(labelled_df)) {
+  name_tmp <- attributes(zap_labels(labelled_df[[var_tmp]]))$label
+  id_list <- c(id_list, var_tmp)
+  names_list <- c(names_list, name_tmp)
+}
+names_list %>% head()
+id_key <- data.frame("id" = id_list, "desc" = names_list)
+# View(id_key)
+rm(names_list, id_list)
+```
+
+``` {r select variables1, echo=FALSE, results='hide', warning=TRUE, message=FALSE}
+# The study interviewed respondents in a pre-election survey that was
+# conducted between August 18, 2020 and November 3, 2020. Election day was
+# November 3, 2020. The study re-interviewed as many as possible of the same
+# respondents in a post-election survey that was conducted between November 8,
+# 2020 and January 4, 2021.
+# For analysis of the complete pre-election dataset,
+# including all cases and representative of the 2020 electorate, use the full sample
+# dataset, consisting of the combination of sample groups for the web only, mixed web, and mixed video modes, and the 2016-2020 panel cases combined. 
+anes_timeseries_raw <- anes_timeseries_2020_stata_20210211 %>% 
+  select( weight_all_samples = V200010a,
+         interview_type = V200002,
+         # ----key filters----#
+         registered_to_vote_loc = V201008,
+         
+         # ----question 1 fields ----#
+         # Democrat vs Republican Age in 2020
+         party_of_registration = V201018,
+         democrat_party_rating = V201156,
+         republican_party_rating = V201157,
+         age = V201507x,
+         voted_early_in_gen_election = V201022,
+         plan_to_vote_in_gen_election = V201032,
+         
+         # ----question 2 fields ----#
+         # Democratic voters excited about Joe Biden or Kamala Harris
+         biden_rating = V201151,
+         harris_rating = V201153,
+         biden_likability = V201106,
+         biden_dislikability = V201108,
+         biden_leadership_skills = V201208,
+         biden_caring_for_people = V201209,
+         biden_knowledgeable = V201210,
+         biden_honest = V201211,
+         
+         # ----question 3 fields ----#
+         # Covid household approval of governor's handleing of the pandemic
+         voted_for_governor = V201066,
+         voted_for_governor2 = V201067,
+         voted_for_governor3 = V201070,
+         voted_for_governor4 = V201073,
+         gov_approval_covid_response = V201145,
+         gov_approval_covid_response2 = V201146,
+         covid_household_tested = V201624,
+         covid_household_suspected = V201625
+         ) %>% 
+  # remove labels from haven package
+  mutate_all(zap_labels) %>% 
+  mutate(
+    registered_to_vote_status = case_when(
+      registered_to_vote_loc %in% c(1,2) ~ T,
+      registered_to_vote_loc == 3 ~ F,
+      T ~ NA),
+    
+    party_of_registration_str = case_when(
+      party_of_registration == 1 ~ "Democrat",
+      party_of_registration == 2 ~ "Republican",
+      party_of_registration == 4 ~ "None_or_independent",
+      party_of_registration == 5 ~ "other",
+      T ~ "NA"),
+    
+    democrat_party_rating_2 = case_when(
+      democrat_party_rating <= 100 & democrat_party_rating >= 0 ~ democrat_party_rating,
+      T ~ -1,
+    ),
+    republican_party_rating_2 = case_when(
+      republican_party_rating <= 100 & republican_party_rating >= 0 ~ republican_party_rating,
+      T ~ -1,
+    )
+  ) %>% 
+  mutate(id = paste0("ID_",row_number())) %>% #create an ID
+  select(-registered_to_vote_loc, -party_of_registration, -democrat_party_rating, -republican_party_rating) %>% 
+  select(id, everything())
+#Drop the attributes associated with the HAVEN package. Extraneous information
+anes_timeseries_raw_tmp <- lapply(anes_timeseries_raw, FUN=function(x){data.frame(as.matrix(x),stringsAsFactors = F)}) %>% as.data.frame()
+names(anes_timeseries_raw_tmp) <- names(anes_timeseries_raw)
+anes_timeseries_raw <- anes_timeseries_raw_tmp
+rm(anes_timeseries_raw_tmp)
+anes_timeseries_raw %>% glimpse()
+#save raw data for scripts 02 and 03
+saveRDS(anes_timeseries_raw, file = "Data/anes_key_fields_forQ3.rds")
+```
+
+```{r select variables 2, echo=FALSE,results='hide', warning=TRUE, message=FALSE}
+#Q1 and Q2 both use party & voter information (biden & harris are for Q2)
+anes_timeseries_q1_0 <-  anes_timeseries_raw %>% 
+  select(id,
+         #Q1 variables
+         registered_to_vote_status,
+         party_of_registration_str,
+         democrat_party_rating_2,
+         republican_party_rating_2,
+         age,
+         voted_early_in_gen_election,
+         plan_to_vote_in_gen_election, 
+         #Q2 variables (carry through to minimize duplicate data cleaning steps)
+         biden_rating,
+         harris_rating
+  )
+#check the structure
+anes_timeseries_q1_0 %>% 
+  str() 
+#all variables are the expected structure
+```
+
+``` {r Define voter 1, echo=FALSE, results='hide', warning=TRUE, message=FALSE}
+#########Registration Status########
+anes_timeseries_q1_0$registered_to_vote_status %>% summary()
+#less than .15% of respondents (i.e. 11) did not respond in a T/F manner. 
+#Drop these sites.
+anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
+  filter(!is.na(registered_to_vote_status))
+anes_timeseries_q1_0 %>% nrow()
+# 8269
+``` 
+``` {r Define party affliation, echo=FALSE, results='hide', warning=TRUE, message=FALSE}
+########Party Affiliation########
+anes_timeseries_q1_0 %>%
+  count(party_of_registration_str) %>%
+  rename(count = n) %>%
+  arrange(desc(count)) %>%
+  mutate(freq = round(count/sum(count)*100,2))
+# Assumption, if respondent is NA for registered party but showed strong favoritability towards one party(delta greater than 50), then classify them as that party potential voter 
+anes_timeseries_q1_0 %>% 
+  filter(party_of_registration_str == "NA" &
+        (democrat_party_rating_2 == -1 | republican_party_rating_2 == -1)) %>% 
+  glimpse()
+# 81 instances where the respondent not registered with either party entered a non numeric rating for one or both of the party ratings (out of 8269 total). Drop from analysis.
+anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>%
+    filter(!(party_of_registration_str == "NA" &
+        (democrat_party_rating_2 == -1 | republican_party_rating_2 == -1))) 
+anes_timeseries_q1_0 %>% nrow()  
+# 8188
+table(anes_timeseries_q1_0$party_of_registration_str)
+# 3929 NAs to reclassify 
+``` 
+
+
+``` {r Define Dem/Rep voter, echo=FALSE, results='hide', warning=TRUE, message=FALSE, fig.cap="If a survey response's abs(Democratic Rating - Republican Rating) > 50 and they are listed as NA for their party affiliation, remap that respondent to either a Democrat/Republican from NA.", fig.pos='!b', fig.height = 3, fig.width = 4, fig.show='hide'}
+#}, fig.align = 'right'}fig.pos='!b'
+# Infer partisan leaning for party registration info inapplicable voters
+anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
+  mutate(dem_party_fav = democrat_party_rating_2 - republican_party_rating_2,
+         rep_party_fav = republican_party_rating_2 - democrat_party_rating_2)
+# layout(matrix(c(1, 0, 0, 1, 0, 0, 1, 2, 3), 3, 3, byrow = TRUE))
+# par(mar=c(0,0,2,0))
+# par(oma=c(2,2,2,2))
+H <- hist(anes_timeseries_q1_0$dem_party_fav, breaks = 20, 
+          ylim = c(0,1200),
+          main = "Democrat - Republican Party Ratings", xlab = NULL)#, labels = TRUE)
+# View the paired delta in ratings
+text(x = H$mids, y = H$counts, labels = H$counts, cex = 0.7, pos = 3, srt=90)
+#Use a cutoff of +/- 50 points to remap NA party registered respondents
+anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
+  mutate(
+    party_of_registration_str2 = case_when(
+      dem_party_fav >= 50 ~ "Democrat", #Strong preference for Democrats
+      rep_party_fav >= 50 ~ "Republican", #Strong preference for Republicans
+      T ~ "NA"),
+    party_of_registration_str3 = if_else(
+      party_of_registration_str == "NA",  
+      party_of_registration_str2, 
+      party_of_registration_str)  
+    )
+anes_timeseries_q1_0 %>% 
+  filter(party_of_registration_str != party_of_registration_str3) %>% 
+  nrow()
+#added back 2105 rows were the party was previously classified as NA
+anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
+  select(-party_of_registration_str2, -dem_party_fav, 
+         -rep_party_fav, -democrat_party_rating_2, -republican_party_rating_2) %>% 
+  rename(party_of_registration_str_raw = party_of_registration_str,
+         party_of_registration_str_edited = party_of_registration_str3)
+anes_timeseries_q1_0 %>% nrow()  
+#8188
+########voted_early_in_gen_election or plan_to_vote_in_gen_election########
+# ALREADY VOTED IN GENERAL ELECTION
+# 1. Have voted
+# 2. Have not voted
+# -9. Refused
+anes_timeseries_q1_0 %>%
+  count(voted_early_in_gen_election) %>%
+  rename(count = n) %>%
+  arrange(desc(count)) %>%
+  mutate(freq = round(count/sum(count)*100,2))
+# 0.06% of the population refused to answer. Drop these since it is so small
+# Do you intend to vote in the November election for President?
+# Values
+# 1. Yes
+# 2. No
+# -1. Inapplicable
+# -8. Don’t know
+# -9. Refused
+anes_timeseries_q1_0 %>%
+  # filter(voted_early_in_gen_election == 2) %>% #QC inapplicable responses
+  count(plan_to_vote_in_gen_election) %>%
+  rename(count = n) %>%
+  arrange(desc(count)) %>%
+  mutate(freq = round(count/sum(count)*100,2))
+# 0.2% of the population refused to answer or did not know. Drop these since it is so small. All "inapplicable" responses are associated with respondents who have already voted from voted_early_in_gen_election   
+anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>% 
+  filter(voted_early_in_gen_election != -9) %>% 
+  filter(!(plan_to_vote_in_gen_election %in% c(-8, -9)))
+100*(1 - (anes_timeseries_q1_0 %>% nrow())/(anes_timeseries_raw %>% nrow()))
+#In all of the data cleaning steps for Q1 and Q2, dropped 1.4% of the survey rows
+########save transformed data for scripts 02########
+saveRDS(anes_timeseries_q1_0, file = "Data/anes_key_fields_forQ2.rds")
+
+```
+
 
 ```{r load and clean data, echo=FALSE, warning=TRUE, message=FALSE, results='hide', fig.show='hide'}
 anes_timeseries_raw2 <- readRDS(file = "Data/anes_key_fields_forQ2.rds") %>% 
