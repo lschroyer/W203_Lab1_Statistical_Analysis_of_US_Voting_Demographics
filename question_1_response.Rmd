@@ -228,11 +228,9 @@ anes_timeseries_q1_0 %>% nrow()
 table(anes_timeseries_q1_0$party_of_registration_str)
 # 3929 NAs to reclassify
 ```
-However, we noticed that 48% of the survey respondents do not have applicable registered party information. Because this represents such a large portion of the sample, we decided to analyze other variables to determine whether there was a way to infer political party affiliation. To that end, we measured the respondents' difference in party rating(V201156,V201157), using "feeling thermometer" variables which ranged from 0-100. If one party was rated 50+ points higher than the other party (measured as seen below in the chart for democratic voters), we assigned that party to that respondent. To illustrate this party assignment methodology, Figure 1 shows the preference of Democratic party over Republican. The right tail with values greater than 50 represents all the respondents we assigned as Democratic voters. Respondents on the left tail with values below -50 were assigned as Republican voters.
+However, we noticed that 48% of the survey respondents do not have applicable registered party information. Because this represents such a large portion of the sample, we decided to analyze other variables to determine whether there was a way to infer political party affiliation. To that end, we measured the respondents' difference in party rating(V201156,V201157), using "feeling thermometer" variables which ranged from 0-100. If one party was rated 50+ points higher than the other party (measured as seen below in the chart for democratic voters), we assigned that party to that respondent. To illustrate this party assignment methodology, Figure 1 shows the preference of Democratic party over Republican. The right tail with values greater than 50 represents all the respondents we assigned as Democratic voters. Respondents on the left tail with values below -50 were assigned as Republican voters. 
 
-This party assignment methodology assigned party information to 2105 data points out of the 3929 respondents that did not have applicable registered party information, bringing the total sample size of eligible voters with clear party tendency to 7624. This larger sample will substantially increase the power of our statistical test.
-
-``` {r Define Dem/Rep voter, echo=FALSE, results='hide', warning=FALSE, message=FALSE, fig.pos='!b', fig.height = 3, fig.width = 4}
+``` {r Define Dem/Rep voter, echo=FALSE, results='hide', warning=TRUE, message=FALSE, fig.cap="If a survey response's abs(Democratic Rating - Republican Rating) > 50 and they are listed as NA for their party affiliation, remap that respondent to either a Democrat/Republican from NA.",  fig.height = 2.75, fig.width = 4}
 #}, fig.align = 'right'}fig.pos='!b'
 # Infer partisan leaning for party registration info inapplicable voters
 
@@ -243,9 +241,11 @@ anes_timeseries_q1_0 <- anes_timeseries_q1_0 %>%
 # layout(matrix(c(1, 0, 0, 1, 0, 0, 1, 2, 3), 3, 3, byrow = TRUE))
 # par(mar=c(0,0,2,0))
 # par(oma=c(2,2,2,2))
-H <- hist(anes_timeseries_q1_0$dem_party_fav, breaks = 20,
-          ylim = c(0,1200),
-          main = "Democrat - Republican Party Ratings", xlab = NULL)#, labels = TRUE)
+H <- hist(anes_timeseries_q1_0$dem_party_fav, breaks = 20, 
+          ylim = c(0,1400),
+          main = "Democrat - Republican Party Ratings", xlab = NULL,
+          cex.main=0.75)
+
 # View the paired delta in ratings
 text(x = H$mids, y = H$counts, labels = H$counts, cex = 0.7, pos = 3, srt=90)
 
@@ -336,11 +336,41 @@ anes_timeseries_q1_voters %>% nrow()
 
 ```
 
-Next, we examined the age of the voters. The age(V201507x) is by year except for all the people above 80 who are bucketed into an "80+" bin. In addition, respondents who refused to answer the age question were assigned as -9. Figure 2 shows there are more Democratic voters in all the age buckets below 50 and more Republican voters in age buckets above 50, including the "80+" bin, as well as the "refuse to answer" bucket.
+This party assignment methodology assigned party information to 2105 data points out of the 3929 respondents that did not have applicable registered party information, bringing the total sample size of eligible voters with clear party tendency to 7624. This larger sample will substantially increase the power of our statistical test.
 
-Since there is little information available to impute the age of the "refuse to answer" group, we excluded them from our analysis and statistical tests. For the samples in "80+" bin, we assume an age of 80 for the purpose of our analysis. We discuss this further in the "test limitations" section of this report.
+Next, we examined the age of the voters. The age(V201507x) is by year except for all the people above 80 who are bucketed into an "80+" bin. In addition, respondents who refused to answer the age question were assigned as -9. Figure 2 shows there are more Democratic voters in all the age buckets below 50 and more Republican voters in age buckets above 50, including the "80+" bin, as well as the "refuse to answer" bucket. Since there is little information available to impute the age of the "refuse to answer" group, we excluded them from our analysis and statistical tests. For the samples in "80+" bin, we assume an age of 80 for the purpose of our analysis. We discuss this further in the "test limitations" section of this report. Table 1 (above) shows  the mean and median ages of Democratic voters vs. Republican voters and the trimmed mean calculated without the "80+" bin. In both scenarios, the mean and median of the Democratic voters are less than the Republican voters. However, is this age difference statistically and practically significant?
 
-Table 1 shows the mean and median ages of Democratic voters vs. Republican voters and the trimmed mean calculated without the "80+" bin. In both scenarios, the mean and median of the Democratic voters are less than the Republican voters. However, is this age difference statistically and practically significant?
+
+
+```{r Plot 2 Q1 visulization of age distribution for two groups, echo=FALSE, warning=FALSE, message=FALSE, out.width="49%", out.height="30%", fig.cap="Age of Survey Respondents by Political Party (negative values are respondents who refused to answer)", fig.show='hold',fig.align='center'}
+
+# Are survey respondents who voted/will vote who answered 80+ or -9 (refused) more likely to be republican or democrat?
+# par(mar=c(0,0,2,0))
+# par(oma=c(0,0,1,0))
+h1 <- anes_timeseries_q1_voters %>%
+  filter(party_of_registration_str_edited == "Democrat") %>%
+  select(age, party_of_registration_str_edited)
+
+h2 <- anes_timeseries_q1_voters %>%
+  filter(party_of_registration_str_edited == "Republican") %>%
+  select(age, party_of_registration_str_edited)
+
+# png(file="plot2.png", width = 2500, height = 2500, pointsize = 100)
+hist(h1$age, col=rgb(0,0,1,0.5),
+     main = "Age of Voters by Party",
+     xlab = "Age (years)", ylab = "Sampled Percentile", freq = FALSE, right = TRUE,
+          cex.lab=1.5, cex.axis=1.5, cex.main=1.5)
+hist(h2$age, freq = FALSE, col=rgb(1,0,0,0.5),
+     add=T, right = TRUE)
+legend("topleft", c("Democrat", "Republican"), lwd=10, col=c(rgb(0,0,1,0.5), rgb(1,0,0,0.5)))
+box()
+# dev.off()
+
+#The resulting histogram illustrates that Republican data has higher rates of 80+ years of age and do not respond.
+# knitr::include_graphics(c("plot2.png","plot1.png"))
+
+```
+
 
 ```{r make summary table, echo = FALSE, results='hide', warning=TRUE, message=FALSE}
 mean_med_age_all <- anes_timeseries_q1_voters %>%
@@ -369,44 +399,17 @@ mean_med_age_joined <- mean_med_age_all %>%
 
 ```
 
-```{r Q1 visulization of age distribution for two groups, echo=FALSE, warning=FALSE, message=FALSE, out.width="49%", out.height="30%", fig.cap="Age of Survey Respondents by Political Party and Table 1: Age by Party for the Unfiltered Dataset and for with the 80+ Age Bin Removed", fig.show='hold',fig.align='center'}
-
+```{r Plot 1 Q1 visulization of age distribution for two groups, echo=FALSE, warning=FALSE, message=FALSE, fig.height = 2.75, fig.width = 4, fig.align='center'}
+# out.width="49%", out.height="30%"fig.show='hold'
 plot1 <- kable(
   mean_med_age_joined,
   digits = 2,
-  # caption = 'Age by Party for: (1) Unfiltered Dataset and (2) 80+ Age Bin Removed',
-  caption = NULL,
+  caption = 'Age by Party for: (1) Unfiltered Dataset and (2) 80+ Age Bin Removed',
+  # caption = NULL,
   booktabs = TRUE
-) %>%
-  save_kable("plot1.png")
-
-# Are survey respondents who voted/will vote who answered 80+ or -9 (refused) more likely to be republican or democrat?
-par(mar=c(0,0,0,0))
-par(oma=c(0,0,0,0))
-h1 <- anes_timeseries_q1_voters %>%
-  filter(party_of_registration_str_edited == "Democrat") %>%
-  select(age, party_of_registration_str_edited)
-
-h2 <- anes_timeseries_q1_voters %>%
-  filter(party_of_registration_str_edited == "Republican") %>%
-  select(age, party_of_registration_str_edited)
-
-png(file="plot2.png", width = 2500, height = 2500, pointsize = 100)
-hist(h1$age, col=rgb(0,0,1,0.5),
-     main = "",
-     xlab = "Age (years)", ylab = "Sampled Percentile", freq = FALSE, right = TRUE)
-hist(h2$age, freq = FALSE, col=rgb(1,0,0,0.5),
-     add=T, right = TRUE)
-legend("topleft", c("Democrat", "Republican"), lwd=10, col=c(rgb(0,0,1,0.5), rgb(1,0,0,0.5)))
-box()
-dev.off()
-
-#The resulting histogram illustrates that Republican data has higher rates of 80+ years of age and do not respond.
-
-
-# knitr::include_graphics(c("path/to/img1","path/to/img1"))
-knitr::include_graphics(c("plot2.png","plot1.png"))
-
+) #%>%
+  #save_kable("plot1.png")
+plot1
 ```
 
 
